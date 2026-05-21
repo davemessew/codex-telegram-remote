@@ -1,0 +1,47 @@
+{
+  "name": "codex-telegram-remote",
+  "version": "0.1.0",
+  "description": "Run Codex from Telegram with a tappable project picker and completion notifications.",
+  "author": {
+    "name": "davemessew",
+    "url": "https://github.com/davemessew"
+  },
+  "homepage": "https://github.com/davemessew/codex-telegram-remote#readme",
+  "repository": "https://github.com/davemessew/codex-telegram-remote",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "telegram",
+    "remote-control",
+    "notifications",
+    "automation"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Codex Telegram Remote",
+    "shortDescription": "Run Codex from Telegram and receive completion messages",
+    "longDescription": "Codex Telegram Remote runs a local Telegram bot that lets approved chats select a Codex project, send normal Telegram messages as Codex prompts, continue jobs when Codex asks a question, and receive completion notifications from both Telegram-launched jobs and regular Codex sessions through an opt-in Stop hook.",
+    "developerName": "davemessew",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/davemessew/codex-telegram-remote",
+    "privacyPolicyURL": "https://github.com/davemessew/codex-telegram-remote/blob/main/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/davemessew/codex-telegram-remote/blob/main/TERMS.md",
+    "defaultPrompt": [
+      "Set up Telegram remote control for Codex",
+      "Troubleshoot my Telegram runner",
+      "Explain the /select project picker"
+    ],
+    "brandColor": "#229ED9",
+    "composerIcon": "./assets/composer-icon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": [
+      "./assets/select-menu.svg"
+    ]
+  }
+}

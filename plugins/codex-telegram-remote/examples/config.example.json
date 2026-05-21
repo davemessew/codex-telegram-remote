@@ -1,0 +1,15 @@
+{
+  "botToken": "123456789:replace-with-your-bot-token",
+  "allowedChatIds": ["123456789"],
+  "completionChatIds": ["123456789"],
+  "defaultProject": "telegram",
+  "projectAliases": {
+    "telegram": "C:/Users/you/Documents/Telegram"
+  },
+  "codexBin": "",
+  "maxConcurrentJobs": 1,
+  "sendFullFinalAnswer": true,
+  "replyToUnauthorized": false,
+  "telegramChunkSize": 3900,
+  "projectPageSize": 8
+}

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="560" viewBox="0 0 980 560" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Telegram Remote project picker</title>
+  <desc id="desc">A Telegram-style chat preview showing the /select command and tappable project buttons.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#e9f6fc"/>
+      <stop offset="1" stop-color="#f7fbfd"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0f2d3d" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="980" height="560" fill="url(#bg)"/>
+  <rect x="238" y="42" width="504" height="476" rx="34" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="238" y="42" width="504" height="76" rx="34" fill="#229ED9"/>
+  <rect x="238" y="86" width="504" height="32" fill="#229ED9"/>
+  <circle cx="294" cy="80" r="22" fill="#ffffff" opacity="0.94"/>
+  <path d="M285 80h18M294 71v18" stroke="#229ED9" stroke-width="4" stroke-linecap="round"/>
+  <text x="330" y="76" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">Codex Remote</text>
+  <text x="330" y="100" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" fill="#dff3fb">online via local runner</text>
+  <rect x="548" y="72" width="136" height="30" rx="15" fill="#168ac0"/>
+  <text x="616" y="92" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="#ffffff">/select</text>
+
+  <rect x="288" y="154" width="160" height="44" rx="18" fill="#eff3f7"/>
+  <text x="326" y="181" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" fill="#17212b">/select</text>
+  <text x="456" y="182" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="12" fill="#8a98a5">10:41</text>
+
+  <rect x="288" y="222" width="408" height="204" rx="18" fill="#e8f7ee"/>
+  <text x="314" y="254" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#17212b">Select a project.</text>
+  <text x="314" y="280" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" fill="#52616d">Current project: telegram. Page 1 of 2.</text>
+  <rect x="314" y="304" width="356" height="38" rx="10" fill="#ffffff" stroke="#b8e4c7"/>
+  <text x="492" y="328" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#1b6d37">Current: telegram</text>
+  <rect x="314" y="350" width="356" height="38" rx="10" fill="#ffffff" stroke="#b8e4c7"/>
+  <text x="492" y="374" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#17212b">web-app</text>
+  <rect x="314" y="396" width="172" height="38" rx="10" fill="#ffffff" stroke="#b8e4c7"/>
+  <text x="400" y="420" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#17212b">api-service</text>
+  <rect x="498" y="396" width="172" height="38" rx="10" fill="#ffffff" stroke="#b8e4c7"/>
+  <text x="584" y="420" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#17212b">Next</text>
+
+  <rect x="388" y="454" width="306" height="42" rx="18" fill="#dff0ff"/>
+  <text x="412" y="480" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" fill="#17212b">add tests for the bot controller</text>
+  <text x="704" y="482" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="12" fill="#8a98a5">10:42</text>
+</svg>

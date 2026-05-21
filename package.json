@@ -1,0 +1,31 @@
+{
+  "name": "codex-telegram-remote",
+  "version": "0.1.0",
+  "description": "Codex plugin and Telegram runner for remote Codex jobs and completion notifications.",
+  "type": "module",
+  "private": false,
+  "author": "davemessew",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davemessew/codex-telegram-remote.git"
+  },
+  "bugs": {
+    "url": "https://github.com/davemessew/codex-telegram-remote/issues"
+  },
+  "homepage": "https://github.com/davemessew/codex-telegram-remote#readme",
+  "scripts": {
+    "test": "node --test",
+    "test:unit": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "keywords": [
+    "codex",
+    "telegram",
+    "plugin",
+    "automation",
+    "remote-control"
+  ]
+}

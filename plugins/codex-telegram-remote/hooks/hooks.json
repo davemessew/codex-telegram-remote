@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"import('node:url').then(({pathToFileURL})=>import(pathToFileURL(process.env.PLUGIN_ROOT + '/scripts/notify-stop.mjs').href))\"",
+            "timeout": 30,
+            "statusMessage": "Sending Telegram completion notification"
+          }
+        ]
+      }
+    ]
+  }
+}

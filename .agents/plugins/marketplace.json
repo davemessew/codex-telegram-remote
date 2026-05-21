@@ -1,0 +1,20 @@
+{
+  "name": "codex-telegram-remote",
+  "interface": {
+    "displayName": "Codex Telegram Remote"
+  },
+  "plugins": [
+    {
+      "name": "codex-telegram-remote",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-telegram-remote"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
