@@ -2,9 +2,9 @@
   "botToken": "123456789:replace-with-your-bot-token",
   "allowedChatIds": ["123456789"],
   "completionChatIds": ["123456789"],
-  "defaultProject": "telegram",
+  "defaultProject": "frontend",
   "projectAliases": {
-    "telegram": "C:/Users/you/Documents/Telegram"
+    "frontend": "C:/code/frontend"
   },
   "codexBin": "",
   "maxConcurrentJobs": 1,

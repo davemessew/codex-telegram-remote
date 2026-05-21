@@ -1,51 +1,73 @@
 # Codex Telegram Remote
 
+[![CI](https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.11-339933)](package.json)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-0-brightgreen)](package.json)
-[![Platforms](https://img.shields.io/badge/platform-Windows%20first%20%7C%20macOS-lightgrey)](#platform-support)
+[![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](package.json)
 
-Run Codex from Telegram with a tappable project picker, normal-message prompts, remote job continuation, and completion notifications when Codex finishes.
+Control local Codex projects from Telegram.
 
-Codex Telegram Remote is a Codex plugin plus a local always-on Telegram runner. It uses Telegram long polling, so you do not need a public webhook URL, a reverse proxy, or an exposed port. On Windows it can keep running from Task Scheduler while the PC is locked, as long as the user is logged in, the machine is awake, and networking is available.
+Codex Telegram Remote runs a local Telegram bot on your machine. Pick a project with `/select`, tap it, then send normal Telegram messages as Codex prompts. When the job finishes, the bot sends the final answer back to Telegram.
 
-## What You Get
+No webhooks. No public ports. No cloud runner. Your machine executes Codex with your existing Codex settings.
 
-- `/select` opens a tappable Telegram project overview.
-- Tap a project once, then send normal Telegram messages as Codex prompts for that project.
-- Reply in Telegram when Codex asks a follow-up question.
-- Receive full final Codex answers in Telegram, chunked safely for Telegram limits.
-- Receive completion notifications for normal Codex app and CLI tasks through the bundled opt-in `Stop` hook.
-- Restrict all execution to explicit Telegram chat IDs.
-- Inherit your existing Codex model, sandbox, approvals, trusted project settings, and authentication.
-- Run on a locked Windows PC via a hidden Task Scheduler job.
+## Why
 
-## Safety Notice
+Codex is useful when you are sitting at your workstation. This project makes it useful when you are away from the keyboard:
 
-This bot turns Telegram messages into local Codex execution on your machine. Treat it like remote access to your development environment.
+| Use case | What happens |
+| --- | --- |
+| Start work remotely | Send a normal Telegram message after selecting a project. |
+| Continue a job | Reply in Telegram when Codex asks a follow-up question. |
+| Know when work is done | Receive the final answer in Telegram, split safely across messages. |
+| Keep normal completion alerts | Enable the optional `Stop` hook for regular Codex app/CLI sessions. |
+| Use a locked Windows PC | Run the local runner from Task Scheduler while the user session remains logged in. |
 
-The defaults are intentionally conservative: only allowlisted chats can run commands, unknown chats are ignored, config/state files are written with private permissions, Telegram-launched jobs are scoped to the chat that started them, and regular Codex completion hooks require explicit Codex trust.
+## Demo
 
-Read [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md) before publishing, installing, or sharing a configured bot.
+```text
+You: /select
 
-## Quick Start: Windows
+Bot: Select a project. Current project: frontend.
 
-Requirements:
+[ Current: frontend ]
+[ api-service       ]
+[ docs-site         ]
 
-- Windows 10 or 11.
-- Codex installed and logged in.
-- Node.js 20.11 or newer.
-- A Telegram bot token from BotFather.
-- Your numeric Telegram chat ID.
+You: add tests for the project picker
 
-Install from a published marketplace repository:
+Bot: Job completed
+<full Codex final answer>
+```
+
+Telegram commands:
+
+```text
+/select          choose the active project
+/current         show the selected project
+/jobs            list recent jobs
+/status [jobId]  show job status
+/tail [jobId]    show recent output
+/cancel <jobId>  cancel a running job
+/help            show command help
+```
+
+## Quick Start
+
+### 1. Create a Telegram bot
+
+Create a bot with [BotFather](https://core.telegram.org/bots/features#botfather), save the token, and find your numeric chat ID.
+
+Detailed steps: [docs/telegram-bot-setup.md](docs/telegram-bot-setup.md)
+
+### 2. Install the plugin
 
 ```powershell
 codex plugin marketplace add https://github.com/davemessew/codex-telegram-remote
 codex plugin add codex-telegram-remote@codex-telegram-remote
 ```
 
-Or install from a local checkout:
+Local checkout:
 
 ```powershell
 git clone https://github.com/davemessew/codex-telegram-remote.git
@@ -57,7 +79,7 @@ codex plugin marketplace add .
 codex plugin add codex-telegram-remote@codex-telegram-remote
 ```
 
-Run setup:
+### 3. Run setup on Windows
 
 ```powershell
 .\plugins\codex-telegram-remote\scripts\setup-windows.ps1 `
@@ -65,84 +87,30 @@ Run setup:
   -AllowedChatIds "123456789"
 ```
 
-Optional friendly default project:
+Optional default project alias:
 
 ```powershell
 .\plugins\codex-telegram-remote\scripts\setup-windows.ps1 `
   -BotToken "123456789:replace-me" `
   -AllowedChatIds "123456789" `
-  -DefaultProject "telegram" `
-  -DefaultProjectPath "C:\Users\you\Documents\Telegram"
+  -DefaultProject "frontend" `
+  -DefaultProjectPath "C:\code\frontend"
 ```
 
-Then open Telegram:
+### 4. Use Telegram
 
-```text
-/select
-```
+Send `/select`, tap a project, then send a normal message.
 
-Tap a project. After that, any normal non-command message in the allowed chat becomes a Codex prompt for the selected project.
-
-Full Windows setup, locked-screen notes, and troubleshooting are in [docs/windows.md](docs/windows.md).
-
-## Telegram Commands
-
-| Command | What it does |
-| --- | --- |
-| `/select` | Open the tappable project picker. |
-| `/select text` | Filter projects by name or path before showing the picker. |
-| `/current` | Show the selected project for this Telegram chat. |
-| `/jobs` | List recent jobs for this Telegram chat. |
-| `/status [jobId]` | Show job status. Uses the most recent job when omitted. |
-| `/tail [jobId]` | Show the latest captured Codex output. |
-| `/cancel <jobId>` | Cancel a running job owned by this Telegram chat. |
-| `/help` | Show command help. |
-
-Normal text messages run prompts only after a project is selected. If no project is selected, the bot shows `/select` instead of running anything.
-
-When Codex asks for input, reply to the bot's question in Telegram or send the next normal message in the same chat. The runner resumes the waiting Codex thread with `codex exec resume`.
-
-## How It Works
-
-```mermaid
-flowchart LR
-  T["Telegram chat"] -->|"long polling"| R["local Node runner"]
-  R -->|"allowlist check"| S["state store"]
-  R -->|"codex exec --json -C <project>"| C["Codex CLI"]
-  C -->|"JSONL events and final answer"| R
-  R -->|"chunked messages"| T
-  H["Codex Stop hook"] -->|"regular task complete"| R
-```
-
-The runner stays local. Telegram talks only to Telegram's Bot API, and Codex execution happens on your machine under your existing Codex configuration.
-
-## Project Discovery
-
-Projects come from two sources:
-
-- Codex config `[projects]` entries in `$CODEX_HOME/config.toml`.
-- Friendly aliases in this plugin's `projectAliases` config.
-
-Aliases are shown first and are useful when a project path is long:
-
-```json
-{
-  "projectAliases": {
-    "telegram": "C:/Users/you/Documents/Telegram",
-    "backend": "D:/work/company/backend"
-  },
-  "defaultProject": "telegram"
-}
-```
-
-The picker shows the current project, supports pagination, and preserves filters while moving between pages.
+Full Windows guide: [docs/windows.md](docs/windows.md)
 
 ## Configuration
 
-Default config paths:
+Default config path:
 
-- Windows: `%USERPROFILE%\.codex-telegram-remote\config.json`
-- macOS/Linux: `~/.codex-telegram-remote/config.json`
+| Platform | Path |
+| --- | --- |
+| Windows | `%USERPROFILE%\.codex-telegram-remote\config.json` |
+| macOS/Linux | `~/.codex-telegram-remote/config.json` |
 
 Minimal config:
 
@@ -153,16 +121,17 @@ Minimal config:
 }
 ```
 
-Full example:
+Common config:
 
 ```json
 {
   "botToken": "123456789:replace-with-your-bot-token",
   "allowedChatIds": ["123456789"],
   "completionChatIds": ["123456789"],
-  "defaultProject": "telegram",
+  "defaultProject": "frontend",
   "projectAliases": {
-    "telegram": "C:/Users/you/Documents/Telegram"
+    "frontend": "C:/code/frontend",
+    "api-service": "C:/code/api-service"
   },
   "codexBin": "",
   "codexHome": "C:/Users/you/.codex",
@@ -175,130 +144,128 @@ Full example:
 }
 ```
 
+### Important options
+
 | Key | Default | Purpose |
 | --- | --- | --- |
-| `botToken` | Required | Telegram bot token from BotFather. Can be supplied with `CODEX_TELEGRAM_BOT_TOKEN`. |
-| `allowedChatIds` | Required | Telegram chats allowed to run Codex. Can be supplied with `CODEX_TELEGRAM_ALLOWED_CHAT_IDS`. |
-| `completionChatIds` | `allowedChatIds` | Chats that receive regular Codex `Stop` hook notifications. |
-| `defaultProject` | Empty | Project alias or path selected by default. Can be supplied with `CODEX_TELEGRAM_DEFAULT_PROJECT`. |
-| `projectAliases` | `{}` | Friendly names mapped to local project paths. |
-| `codexBin` | Auto-detected | Path to the Codex binary. Can be supplied with `CODEX_CLI_PATH` or `CODEX_BIN`. |
-| `codexHome` | `~/.codex` | Codex config and transcript directory. Can be supplied with `CODEX_HOME`. |
-| `maxConcurrentJobs` | `1` | Maximum simultaneous Telegram-launched Codex jobs. |
+| `allowedChatIds` | Required | Only these Telegram chats can run Codex. |
+| `completionChatIds` | `allowedChatIds` | Chats that receive regular completion notifications. |
+| `projectAliases` | `{}` | Friendly project names shown in `/select`. |
+| `defaultProject` | Empty | Alias or path selected by default. |
+| `codexBin` | Auto-detected | Path to the Codex binary. |
+| `maxConcurrentJobs` | `1` | Maximum simultaneous Telegram-launched jobs. |
 | `sendFullFinalAnswer` | `true` | Send final answer text instead of only job status. |
-| `replyToUnauthorized` | `false` | Reply to unknown chats. Keep this off except during chat ID setup. |
-| `telegramChunkSize` | `3900` | Message chunk size, kept below Telegram's 4096-character limit. |
-| `pollTimeoutSeconds` | `50` | Telegram long-poll timeout. |
-| `projectPageSize` | `8` | Projects shown per picker page. |
+| `replyToUnauthorized` | `false` | Reply to unknown chats. Keep off except during setup. |
 
-Environment variables:
+Environment overrides:
 
-- `CODEX_TELEGRAM_BOT_TOKEN`
-- `CODEX_TELEGRAM_ALLOWED_CHAT_IDS`
-- `CODEX_TELEGRAM_DEFAULT_PROJECT`
-- `CODEX_TELEGRAM_CONFIG`
-- `CODEX_TELEGRAM_CONFIG_DIR`
-- `CODEX_CLI_PATH` or `CODEX_BIN`
-- `CODEX_HOME`
-
-## Completion Notifications
-
-Telegram-launched jobs notify automatically through the runner.
-
-Regular Codex app and CLI tasks notify through the bundled `Stop` hook. Codex plugin hooks are opt-in:
-
-```toml
-[features]
-plugin_hooks = true
+```text
+CODEX_TELEGRAM_BOT_TOKEN
+CODEX_TELEGRAM_ALLOWED_CHAT_IDS
+CODEX_TELEGRAM_DEFAULT_PROJECT
+CODEX_TELEGRAM_CONFIG
+CODEX_TELEGRAM_CONFIG_DIR
+CODEX_CLI_PATH
+CODEX_BIN
+CODEX_HOME
 ```
 
-After enabling plugin hooks, open Codex and review `/hooks`. Trust the Codex Telegram Remote `Stop` hook only after reading the hook command. The hook suppresses duplicate notifications for jobs launched from Telegram.
+## How It Works
+
+```mermaid
+flowchart LR
+  T["Telegram"] -->|"long polling"| R["Local runner"]
+  R -->|"allowlist + selected project"| S["State file"]
+  R -->|"codex exec --json -C <project>"| C["Codex CLI"]
+  C -->|"JSONL events"| R
+  R -->|"final answer chunks"| T
+  H["Optional Stop hook"] -->|"regular task complete"| T
+```
+
+Project discovery uses:
+
+- `[projects]` from `$CODEX_HOME/config.toml`
+- `projectAliases` from this plugin's config
+
+The runner stores selected projects and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
+
+## Security Model
+
+This project lets Telegram messages trigger local Codex execution. Treat it like remote access to your developer machine.
+
+Safe defaults:
+
+- Unknown Telegram chats are ignored.
+- Every executable chat must be listed in `allowedChatIds`.
+- State and config files are written with private permissions where the platform supports it.
+- Telegram-launched jobs inherit your existing Codex sandbox, approvals, model, auth, and trusted project settings.
+- The regular completion hook is opt-in and must be trusted in Codex.
+- Hook transcript reads are restricted to the configured Codex home.
+
+Read before publishing or installing for real use:
+
+- [SECURITY.md](SECURITY.md)
+- [PRIVACY.md](PRIVACY.md)
+- [TERMS.md](TERMS.md)
 
 ## Platform Support
 
-| Platform | Status | Runner |
+| Platform | Status | Notes |
 | --- | --- | --- |
-| Windows 10/11 | Primary support | Hidden Task Scheduler job at user logon. |
-| macOS | Supported setup script | LaunchAgent in `~/Library/LaunchAgents`. |
-| Linux | Runner code is portable | No packaged service installer yet. |
+| Windows 10/11 | Primary | Setup creates a hidden Task Scheduler job at user logon. |
+| macOS | Supported | Setup creates a user LaunchAgent. |
+| Linux | Runner is portable | No packaged service installer yet. |
 
-### Locked Windows PCs
+Locked Windows sessions work when the user remains logged in, the machine is awake, networking is available, and Codex does not need an interactive desktop approval prompt.
 
-The Windows scheduled task continues after the screen is locked if:
+## Documentation
 
-- The user remains logged in.
-- The machine is awake.
-- Networking remains available.
-- Codex does not require an interactive desktop approval prompt.
-
-For reliable remote use, disable sleep while plugged in and choose Codex approval settings that make sense for unattended work.
-
-## macOS Setup
-
-```bash
-BOT_TOKEN="123456789:replace-me" \
-ALLOWED_CHAT_IDS="123456789" \
-./plugins/codex-telegram-remote/scripts/setup-macos.sh
-```
-
-The macOS setup uses `umask 077`, validates the Telegram token, writes private config files, and installs a user LaunchAgent. See [docs/macos.md](docs/macos.md).
-
-## Repository Layout
-
-```text
-plugins/codex-telegram-remote/
-  .codex-plugin/plugin.json       Codex plugin metadata
-  hooks/hooks.json                Opt-in Stop hook
-  scripts/runner.mjs              Telegram long-poll runner
-  scripts/lib/                    Runner, config, state, Telegram, and Codex modules
-  scripts/setup-windows.ps1       Windows installer
-  scripts/setup-macos.sh          macOS installer
-  examples/config.example.json    Config template
-  skills/                         Plugin skill docs for Codex
-docs/                             Setup, publishing, uninstall, and troubleshooting docs
-tests/                            Node test suite with fake Telegram and fake Codex processes
-```
+| Topic | Link |
+| --- | --- |
+| Telegram bot setup | [docs/telegram-bot-setup.md](docs/telegram-bot-setup.md) |
+| Windows setup | [docs/windows.md](docs/windows.md) |
+| macOS setup | [docs/macos.md](docs/macos.md) |
+| Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| Uninstall | [docs/uninstall.md](docs/uninstall.md) |
+| Publishing | [docs/publishing.md](docs/publishing.md) |
 
 ## Development
 
 ```powershell
-npm.cmd install
-npm.cmd test
-npm.cmd audit --omit=dev
+npm install
+npm test
+npm audit --omit=dev
 ```
 
-Syntax checks used during release validation:
+The project uses Node's built-in test runner and has no runtime npm dependencies.
+
+Useful validation:
 
 ```powershell
 Get-ChildItem -Recurse -Filter *.mjs | ForEach-Object { node --check $_.FullName }
 ```
 
-The project intentionally has no runtime npm dependencies.
+## Repository Layout
 
-## Publishing Checklist
+```text
+plugins/codex-telegram-remote/
+  .codex-plugin/plugin.json       plugin metadata
+  hooks/hooks.json                optional Stop hook
+  scripts/runner.mjs              Telegram long-poll runner
+  scripts/lib/                    runner modules
+  scripts/setup-windows.ps1       Windows setup
+  scripts/setup-macos.sh          macOS setup
+  examples/config.example.json    config template
+  skills/                         plugin skill
+docs/                             setup and operations docs
+tests/                            unit and integration-style tests
+```
 
-Before publishing a GitHub release:
+## Contributing
 
-- Run the full test suite.
-- Run `npm audit --omit=dev`.
-- Verify `setup-windows.ps1` with a real Telegram bot token and chat ID.
-- Confirm the runner works after locking the Windows session.
-- Smoke-test `codex exec --json -C <project>` with the discovered Codex binary.
-- Review [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md), and [TERMS.md](TERMS.md).
-- Confirm repository links point to the intended GitHub owner before tagging a release.
+Issues and pull requests are welcome. Keep changes focused, add tests for behavior changes, and do not commit bot tokens, chat IDs, transcripts, or local machine paths.
 
-Detailed publishing notes are in [docs/publishing.md](docs/publishing.md).
-
-## Troubleshooting
-
-Common issues are covered in [docs/troubleshooting.md](docs/troubleshooting.md):
-
-- Windows Store `codex.exe` access denied.
-- PowerShell blocking `npm.ps1`.
-- Bot does not respond.
-- No projects appear in `/select`.
-- Hook notifications do not fire.
-- Locked PC stops responding.
+Security reports should follow [SECURITY.md](SECURITY.md).
 
 ## License
 

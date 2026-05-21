@@ -40,8 +40,8 @@ Optional friendly default project:
 .\plugins\codex-telegram-remote\scripts\setup-windows.ps1 `
   -BotToken "123456789:replace-me" `
   -AllowedChatIds "123456789" `
-  -DefaultProject "telegram" `
-  -DefaultProjectPath "C:\Users\you\Documents\Telegram"
+  -DefaultProject "frontend" `
+  -DefaultProjectPath "C:\code\frontend"
 ```
 
 The script:

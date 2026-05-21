@@ -22,8 +22,8 @@ Optional project alias:
 ```bash
 BOT_TOKEN="123456789:replace-me" \
 ALLOWED_CHAT_IDS="123456789" \
-DEFAULT_PROJECT="telegram" \
-DEFAULT_PROJECT_PATH="$HOME/Documents/Telegram" \
+DEFAULT_PROJECT="frontend" \
+DEFAULT_PROJECT_PATH="$HOME/code/frontend" \
 ./plugins/codex-telegram-remote/scripts/setup-macos.sh
 ```
 
