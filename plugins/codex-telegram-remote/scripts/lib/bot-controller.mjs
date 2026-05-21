@@ -201,9 +201,12 @@ export function createBotController({
   }
 
   async function sendStatus(chatId, jobId) {
-    const jobs = codex.listJobs(chatId);
-    const job = jobId ? jobs.find((candidate) => candidate.jobId === jobId) : jobs[0];
-    await telegram.sendMessage(chatId, job ? formatJobStatus(job) : "No matching job found.");
+    const resolved = resolveCommandJob(chatId, jobId);
+    if (resolved.error) {
+      await telegram.sendMessage(chatId, resolved.error);
+      return;
+    }
+    await telegram.sendMessage(chatId, formatJobStatus(resolved.job));
   }
 
   async function cancelJob(chatId, jobId) {
@@ -224,12 +227,12 @@ export function createBotController({
   }
 
   async function sendTail(chatId, jobId) {
-    const jobs = codex.listJobs(chatId);
-    const job = jobId ? jobs.find((candidate) => candidate.jobId === jobId) : jobs[0];
-    if (!job) {
-      await telegram.sendMessage(chatId, "No matching job found.");
+    const resolved = resolveCommandJob(chatId, jobId);
+    if (resolved.error) {
+      await telegram.sendMessage(chatId, resolved.error);
       return;
     }
+    const job = resolved.job;
     await telegram.sendMessage(chatId, job.finalMessage || job.stderrTail || job.stdoutTail || "No output captured yet.");
   }
 
@@ -242,9 +245,9 @@ export function createBotController({
         "/select - choose a project",
         "/current - show the active project",
         "/jobs - list recent jobs",
-        "/status [jobId] - show job status",
+        "/status [jobId] - show current project job status",
         "/cancel <jobId> - cancel a job",
-        "/tail [jobId] - show recent output",
+        "/tail [jobId] - show current project recent output",
         "",
         "After selecting a project, send a normal message to run Codex in that project.",
       ].join("\n"),
@@ -272,6 +275,22 @@ export function createBotController({
   return {
     handleUpdate,
   };
+
+  function resolveCommandJob(chatId, jobId) {
+    const jobs = codex.listJobs(chatId);
+    if (jobId) {
+      const job = jobs.find((candidate) => candidate.jobId === jobId);
+      return job ? { job } : { error: "No matching job found." };
+    }
+
+    const project = findProjectById(projects, state.getSelectedProject(chatId));
+    if (!project) {
+      return { error: "No project selected. Use /select." };
+    }
+
+    const job = jobs.find((candidate) => jobMatchesProject(candidate, project));
+    return job ? { job } : { error: `No jobs found for current project: ${project.name}.` };
+  }
 }
 
 function formatJobStatus(job) {
@@ -281,4 +300,8 @@ function formatJobStatus(job) {
     job.projectName ? `Project: ${job.projectName}` : "",
     job.threadId ? `Thread: ${job.threadId}` : "",
   ].filter(Boolean).join("\n");
+}
+
+function jobMatchesProject(job, project) {
+  return job.projectId === project.id || job.projectPath === project.path;
 }

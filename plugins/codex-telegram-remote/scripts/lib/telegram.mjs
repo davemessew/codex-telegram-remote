@@ -141,9 +141,9 @@ export function telegramCommands() {
     { command: "select", description: "Choose the active Codex project" },
     { command: "current", description: "Show the active project" },
     { command: "jobs", description: "List recent Codex jobs" },
-    { command: "status", description: "Show a job status" },
+    { command: "status", description: "Show current project job status" },
     { command: "cancel", description: "Cancel a running job" },
-    { command: "tail", description: "Show recent output for a job" },
+    { command: "tail", description: "Show current project output" },
     { command: "help", description: "Show help" },
   ];
 }

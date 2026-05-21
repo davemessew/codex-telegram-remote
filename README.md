@@ -76,8 +76,8 @@ Bot: Job completed
 /select          choose the active project
 /current         show the selected project
 /jobs            list recent jobs
-/status [jobId]  show job status
-/tail [jobId]    show recent output
+/status [jobId]  show current project status, or a specific job
+/tail [jobId]    show current project output, or a specific job
 /cancel <jobId>  cancel a running job
 /help            show command help
 ```

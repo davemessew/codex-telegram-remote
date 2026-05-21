@@ -10,6 +10,11 @@ const projects = [
     name: "telegram",
     path: "C:/work/telegram",
   },
+  {
+    id: "api-service",
+    name: "api-service",
+    path: "C:/work/api-service",
+  },
 ];
 
 function createHarness() {
@@ -38,11 +43,22 @@ function createHarness() {
         throw new Error("Codex failed");
       }
       const status = prompt.endsWith("?") ? "awaiting_reply" : "completed";
-      jobs.set("job-1", { jobId: "job-1", chatId: String(chatId), status });
+      jobs.set("job-1", {
+        jobId: "job-1",
+        chatId: String(chatId),
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
+        status,
+        updatedAt: "2026-05-22T00:00:00.000Z",
+      });
       calls.push({ method: "startJob", chatId, project, prompt });
       return {
         jobId: "job-1",
         threadId: "thread-1",
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
         finalMessage: status === "awaiting_reply" ? "Which option?" : "finished",
         status,
       };
@@ -59,7 +75,9 @@ function createHarness() {
         status: "completed",
       };
     },
-    listJobs: (chatId) => [...jobs.values()].filter((job) => !chatId || job.chatId === String(chatId)),
+    listJobs: (chatId) => [...jobs.values()]
+      .filter((job) => !chatId || job.chatId === String(chatId))
+      .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? ""))),
     cancelJob: async (jobId) => {
       calls.push({ method: "cancelJob", jobId });
       return jobs.delete(jobId);
@@ -76,6 +94,7 @@ function createHarness() {
       telegram,
       codex,
     }),
+    jobs,
   };
 }
 
@@ -231,6 +250,141 @@ test("sendFullFinalAnswer false sends status instead of full output", async () =
 
   assert.match(calls.at(-1).text, /^Job: job-1\nStatus: completed/);
   assert.equal(calls.at(-1).text.includes("finished"), false);
+});
+
+test("status without job id uses the current project's latest job", async () => {
+  const { calls, controller, jobs } = createHarness();
+  jobs.set("job-api", {
+    jobId: "job-api",
+    chatId: "123",
+    projectId: "api-service",
+    projectName: "api-service",
+    projectPath: "C:/work/api-service",
+    status: "completed",
+    updatedAt: "2026-05-22T00:03:00.000Z",
+  });
+  jobs.set("job-telegram", {
+    jobId: "job-telegram",
+    chatId: "123",
+    projectId: "telegram",
+    projectName: "telegram",
+    projectPath: "C:/work/telegram",
+    status: "running",
+    updatedAt: "2026-05-22T00:02:00.000Z",
+  });
+
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-1",
+      data: "select:telegram",
+      message: { message_id: 10, chat: { id: 123 } },
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/status",
+    },
+  });
+
+  assert.match(calls.at(-1).text, /^Job: job-telegram\nStatus: running/);
+});
+
+test("tail without job id uses the current project's latest job", async () => {
+  const { calls, controller, jobs } = createHarness();
+  jobs.set("job-api", {
+    jobId: "job-api",
+    chatId: "123",
+    projectId: "api-service",
+    projectName: "api-service",
+    projectPath: "C:/work/api-service",
+    finalMessage: "api output",
+    status: "completed",
+    updatedAt: "2026-05-22T00:03:00.000Z",
+  });
+  jobs.set("job-telegram", {
+    jobId: "job-telegram",
+    chatId: "123",
+    projectId: "telegram",
+    projectName: "telegram",
+    projectPath: "C:/work/telegram",
+    stdoutTail: "telegram output",
+    status: "running",
+    updatedAt: "2026-05-22T00:02:00.000Z",
+  });
+
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-1",
+      data: "select:telegram",
+      message: { message_id: 10, chat: { id: 123 } },
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/tail",
+    },
+  });
+
+  assert.equal(calls.at(-1).text, "telegram output");
+});
+
+test("status and tail still accept explicit job ids", async () => {
+  const { calls, controller, jobs } = createHarness();
+  jobs.set("job-api", {
+    jobId: "job-api",
+    chatId: "123",
+    projectId: "api-service",
+    projectName: "api-service",
+    projectPath: "C:/work/api-service",
+    finalMessage: "api output",
+    status: "completed",
+    updatedAt: "2026-05-22T00:03:00.000Z",
+  });
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 1,
+      chat: { id: 123 },
+      text: "/status job-api",
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/tail job-api",
+    },
+  });
+
+  assert.match(calls.at(-2).text, /^Job: job-api\nStatus: completed/);
+  assert.equal(calls.at(-1).text, "api output");
+});
+
+test("status without job id asks for a selected project", async () => {
+  const { calls, controller, jobs } = createHarness();
+  jobs.set("job-telegram", {
+    jobId: "job-telegram",
+    chatId: "123",
+    projectId: "telegram",
+    projectName: "telegram",
+    projectPath: "C:/work/telegram",
+    status: "completed",
+    updatedAt: "2026-05-22T00:02:00.000Z",
+  });
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 1,
+      chat: { id: 123 },
+      text: "/status",
+    },
+  });
+
+  assert.equal(calls.at(-1).text, "No project selected. Use /select.");
 });
 
 test("Codex start errors are reported to the same Telegram chat", async () => {
