@@ -7,6 +7,13 @@
 Pick a project with `/select`, send a normal message, and get the final answer back when Codex finishes.
 
 <p>
+  🚀 Run Codex from anywhere Telegram works<br>
+  🧭 Tap `/select`, choose a project, then type normally<br>
+  🔔 Get final answers and completion pings automatically<br>
+  🔒 Keep execution local, allowlisted, and under your Codex settings
+</p>
+
+<p>
   <a href="https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml/badge.svg"></a>
   <a href="package.json"><img alt="Node >= 20.11" src="https://img.shields.io/badge/node-%3E%3D20.11-339933"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
@@ -31,7 +38,7 @@ Pick a project with `/select`, send a normal message, and get the final answer b
 
 Codex Telegram Remote is a local runner plus a Codex plugin. It talks to Telegram through long polling, so there are no public webhooks, no exposed ports, and no cloud worker between Telegram and your machine.
 
-| Select | Prompt | Continue | Notify |
+| 🚀 Select | ✍️ Prompt | 🔁 Continue | 🔔 Notify |
 | --- | --- | --- | --- |
 | Tap `/select` to choose a project. | Send normal Telegram messages as Codex prompts. | Reply when Codex asks a question. | Receive final answers and completion alerts. |
 
