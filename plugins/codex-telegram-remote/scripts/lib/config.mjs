@@ -54,7 +54,7 @@ export function normalizeConfig(raw = {}, options = {}) {
 }
 
 export function loadConfig(configPath = resolveConfigPath()) {
-  const raw = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const raw = JSON.parse(stripUtf8Bom(fs.readFileSync(configPath, "utf8")));
   return normalizeConfig(raw);
 }
 
@@ -160,6 +160,10 @@ function splitCsv(value) {
     return [];
   }
   return String(value).split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function stripUtf8Bom(value) {
+  return String(value).replace(/^\uFEFF/, "");
 }
 
 function decodeTomlBasicString(value) {

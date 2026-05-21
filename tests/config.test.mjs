@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
+  loadConfig,
   resolveConfigPath,
   normalizeConfig,
   parseCodexProjects,
@@ -59,6 +63,21 @@ test("resolveConfigPath respects CODEX_TELEGRAM_CONFIG_DIR", () => {
     }),
     "C:\\config\\config.json",
   );
+});
+
+test("loadConfig accepts Windows UTF-8 BOM config files", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-config-"));
+  const configPath = path.join(dir, "config.json");
+  fs.writeFileSync(
+    configPath,
+    `\uFEFF${JSON.stringify({ botToken: "123:token", allowedChatIds: ["782713597"] })}`,
+    "utf8",
+  );
+
+  const config = loadConfig(configPath);
+
+  assert.equal(config.botToken, "123:token");
+  assert.deepEqual(config.allowedChatIds, ["782713597"]);
 });
 
 test("parseCodexProjects reads quoted Windows project paths from Codex TOML", () => {
