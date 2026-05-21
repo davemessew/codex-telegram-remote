@@ -7,7 +7,7 @@
 Pick a project with `/select`, send a normal message, and get the final answer back when Codex finishes.
 
 <p>
-  🚀 Run Codex from anywhere Telegram works<br>
+  🚀 Run Codex from anywhere with Telegram<br>
   🧭 Tap `/select`, choose a project, then type normally<br>
   🔔 Get final answers and completion pings automatically<br>
   🔒 Keep execution local, allowlisted, and under your Codex settings
