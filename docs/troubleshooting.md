@@ -25,6 +25,48 @@ macOS:
 launchctl print "gui/$(id -u)/com.codex.telegram-remote"
 ```
 
+## Telegram `getUpdates` Conflict
+
+This error means Telegram sees more than one long-polling consumer for the same bot token:
+
+```text
+Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+```
+
+Telegram allows only one active `getUpdates` poller per bot token. Common causes:
+
+- The Windows scheduled task is running and you also started `runner.mjs` manually.
+- Another terminal, service, PC, container, or old install is using the same bot token.
+- A previous long-poll request is still being closed; wait longer than `pollTimeoutSeconds` before starting another runner.
+
+Check local Windows runners:
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match 'codex-telegram-remote|runner\.mjs' } |
+  Select-Object ProcessId,CommandLine
+
+Get-ScheduledTask -TaskName CodexTelegramRemote
+Get-ScheduledTaskInfo -TaskName CodexTelegramRemote
+```
+
+Use the scheduled task:
+
+```powershell
+# Close any manual runner terminals, then:
+Start-ScheduledTask -TaskName CodexTelegramRemote
+```
+
+Debug manually:
+
+```powershell
+Stop-ScheduledTask -TaskName CodexTelegramRemote
+Start-Sleep -Seconds 60
+node .\plugins\codex-telegram-remote\scripts\runner.mjs
+```
+
+If the conflict persists after all local runners are stopped, revoke the bot token in BotFather or stop the other host using that token.
+
 ## `/select` Shows No Projects
 
 Codex Telegram Remote reads projects from `$CODEX_HOME/config.toml` and `projectAliases`.

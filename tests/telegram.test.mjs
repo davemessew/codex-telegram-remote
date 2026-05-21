@@ -4,7 +4,9 @@ import { test } from "node:test";
 import {
   chunkTelegramText,
   isAllowedChat,
+  isTelegramGetUpdatesConflict,
   normalizeTelegramMessage,
+  TelegramApiError,
 } from "../plugins/codex-telegram-remote/scripts/lib/telegram.mjs";
 
 test("chunkTelegramText splits long messages under the configured limit", () => {
@@ -44,4 +46,15 @@ test("normalizeTelegramMessage extracts chat, text, and reply metadata", () => {
     text: "hello",
     replyToMessageId: 3,
   });
+});
+
+test("isTelegramGetUpdatesConflict detects duplicate long-polling errors", () => {
+  const error = new TelegramApiError({
+    method: "getUpdates",
+    errorCode: 409,
+    description: "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running",
+  });
+
+  assert.equal(isTelegramGetUpdatesConflict(error), true);
+  assert.equal(isTelegramGetUpdatesConflict(new Error("Conflict")), false);
 });

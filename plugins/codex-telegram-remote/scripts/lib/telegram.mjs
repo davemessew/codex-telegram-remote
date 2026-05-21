@@ -1,5 +1,15 @@
 export const TELEGRAM_API_BASE = "https://api.telegram.org";
 
+export class TelegramApiError extends Error {
+  constructor({ method, description, errorCode, statusText }) {
+    super(`Telegram ${method} failed: ${description || statusText || "Unknown Telegram API error"}`);
+    this.name = "TelegramApiError";
+    this.method = method;
+    this.description = description ?? "";
+    this.errorCode = errorCode;
+  }
+}
+
 export class TelegramClient {
   constructor({ botToken, fetchImpl = globalThis.fetch, apiBase = TELEGRAM_API_BASE }) {
     if (!botToken) {
@@ -24,7 +34,12 @@ export class TelegramClient {
     });
     const body = await response.json();
     if (!response.ok || body.ok === false) {
-      throw new Error(`Telegram ${method} failed: ${body.description ?? response.statusText}`);
+      throw new TelegramApiError({
+        method,
+        description: body.description,
+        errorCode: body.error_code ?? response.status,
+        statusText: response.statusText,
+      });
     }
     return body.result;
   }
@@ -131,4 +146,11 @@ export function telegramCommands() {
     { command: "tail", description: "Show recent output for a job" },
     { command: "help", description: "Show help" },
   ];
+}
+
+export function isTelegramGetUpdatesConflict(error) {
+  return error instanceof TelegramApiError
+    && error.method === "getUpdates"
+    && error.errorCode === 409
+    && /conflict|other getupdates request/i.test(error.description);
 }

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+
 import {
   loadCodexProjectPaths,
   loadConfig,
@@ -7,38 +10,117 @@ import {
 import { createBotController } from "./lib/bot-controller.mjs";
 import { CodexJobRunner } from "./lib/codex-runner.mjs";
 import { createFileStateStore } from "./lib/state-store.mjs";
-import { TelegramClient, telegramCommands } from "./lib/telegram.mjs";
+import {
+  isTelegramGetUpdatesConflict,
+  TelegramClient,
+  telegramCommands,
+} from "./lib/telegram.mjs";
 
 async function main() {
   const config = loadConfig();
   assertConfig(config);
+  const lock = acquireRunnerLock(path.join(config.configDir, "runner.lock"));
+  if (!lock.acquired) {
+    console.error(`[codex-telegram-remote] runner already active pid=${lock.ownerPid ?? "unknown"}`);
+    return;
+  }
 
-  const projects = resolveConfiguredProjects({
-    config,
-    codexProjectPaths: loadCodexProjectPaths(config.codexHome),
-  });
-  const state = createFileStateStore(config.statePath);
-  const telegram = new TelegramClient({ botToken: config.botToken });
-  const codex = new CodexJobRunner({
-    codexBin: config.codexBin,
-    state,
-    maxConcurrentJobs: config.maxConcurrentJobs,
-  });
-  const controller = createBotController({
-    config,
-    projects,
-    state,
-    telegram,
-    codex,
-  });
+  try {
+    const projects = resolveConfiguredProjects({
+      config,
+      codexProjectPaths: loadCodexProjectPaths(config.codexHome),
+    });
+    const state = createFileStateStore(config.statePath);
+    const telegram = new TelegramClient({ botToken: config.botToken });
+    const codex = new CodexJobRunner({
+      codexBin: config.codexBin,
+      state,
+      maxConcurrentJobs: config.maxConcurrentJobs,
+    });
+    const controller = createBotController({
+      config,
+      projects,
+      state,
+      telegram,
+      codex,
+    });
 
-  await telegram.setMyCommands(telegramCommands());
-  await runPollingLoop({
-    telegram,
-    controller,
-    state,
-    timeout: config.pollTimeoutSeconds,
-  });
+    await telegram.setMyCommands(telegramCommands());
+    await runPollingLoop({
+      telegram,
+      controller,
+      state,
+      timeout: config.pollTimeoutSeconds,
+    });
+  } finally {
+    lock.release?.();
+  }
+}
+
+export function acquireRunnerLock(
+  lockPath,
+  { pid = process.pid, isProcessAlive = defaultIsProcessAlive } = {},
+) {
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const payload = { pid, startedAt: new Date().toISOString() };
+      fs.writeFileSync(lockPath, JSON.stringify(payload), { flag: "wx", mode: 0o600 });
+      return {
+        acquired: true,
+        ownerPid: pid,
+        release: () => releaseRunnerLock(lockPath, pid),
+      };
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+      const owner = readRunnerLock(lockPath);
+      if (owner?.pid && isProcessAlive(owner.pid)) {
+        return { acquired: false, ownerPid: owner.pid };
+      }
+      try {
+        fs.unlinkSync(lockPath);
+      } catch (unlinkError) {
+        if (unlinkError?.code !== "ENOENT") {
+          throw unlinkError;
+        }
+      }
+    }
+  }
+  const owner = readRunnerLock(lockPath);
+  return { acquired: false, ownerPid: owner?.pid };
+}
+
+function releaseRunnerLock(lockPath, pid) {
+  const owner = readRunnerLock(lockPath);
+  if (owner?.pid !== pid) {
+    return;
+  }
+  try {
+    fs.unlinkSync(lockPath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+function readRunnerLock(lockPath) {
+  try {
+    return JSON.parse(fs.readFileSync(lockPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function defaultIsProcessAlive(pid) {
+  try {
+    process.kill(Number(pid), 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
 }
 
 export async function runPollingLoop({ telegram, controller, state, timeout }) {
@@ -65,10 +147,25 @@ export async function runPollingLoop({ telegram, controller, state, timeout }) {
         }
       }
     } catch (error) {
-      console.error(`[codex-telegram-remote] ${error.stack ?? error.message}`);
-      await delay(3000);
+      console.error(`[codex-telegram-remote] ${formatPollingError(error)}`);
+      await delay(pollingRetryDelay(error));
     }
   }
+}
+
+export function formatPollingError(error) {
+  if (isTelegramGetUpdatesConflict(error)) {
+    return [
+      "Telegram getUpdates conflict: another runner is polling this bot token.",
+      "Stop duplicate manual runners, scheduled tasks, or other machines using the same bot token.",
+      "Retrying in 30 seconds.",
+    ].join(" ");
+  }
+  return error.stack ?? error.message;
+}
+
+export function pollingRetryDelay(error) {
+  return isTelegramGetUpdatesConflict(error) ? 30000 : 3000;
 }
 
 function assertConfig(config) {
