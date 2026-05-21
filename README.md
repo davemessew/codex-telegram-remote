@@ -9,8 +9,6 @@ Run Codex from Telegram with a tappable project picker, normal-message prompts, 
 
 Codex Telegram Remote is a Codex plugin plus a local always-on Telegram runner. It uses Telegram long polling, so you do not need a public webhook URL, a reverse proxy, or an exposed port. On Windows it can keep running from Task Scheduler while the PC is locked, as long as the user is logged in, the machine is awake, and networking is available.
 
-![Telegram /select project picker](plugins/codex-telegram-remote/assets/select-menu.svg)
-
 ## What You Get
 
 - `/select` opens a tappable Telegram project overview.
