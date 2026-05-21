@@ -1,27 +1,39 @@
+<div align="center">
+
 # Codex Telegram Remote
 
-[![CI](https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.11-339933)](package.json)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](package.json)
+### Run local Codex jobs from Telegram.
 
-Control local Codex projects from Telegram.
+Pick a project with `/select`, send a normal message, and get the final answer back when Codex finishes.
 
-Codex Telegram Remote runs a local Telegram bot on your machine. Pick a project with `/select`, tap it, then send normal Telegram messages as Codex prompts. When the job finishes, the bot sends the final answer back to Telegram.
+<p>
+  <a href="https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/davemessew/codex-telegram-remote/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="package.json"><img alt="Node >= 20.11" src="https://img.shields.io/badge/node-%3E%3D20.11-339933"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <a href="package.json"><img alt="zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen"></a>
+</p>
 
-No webhooks. No public ports. No cloud runner. Your machine executes Codex with your existing Codex settings.
+<p>
+  <a href="#quick-start"><strong>Quick Start</strong></a>
+  |
+  <a href="#demo"><strong>Demo</strong></a>
+  |
+  <a href="#security-model"><strong>Security</strong></a>
+  |
+  <a href="docs/windows.md"><strong>Windows Setup</strong></a>
+  |
+  <a href="docs/troubleshooting.md"><strong>Troubleshooting</strong></a>
+</p>
 
-## Why
+</div>
 
-Codex is useful when you are sitting at your workstation. This project makes it useful when you are away from the keyboard:
+---
 
-| Use case | What happens |
-| --- | --- |
-| Start work remotely | Send a normal Telegram message after selecting a project. |
-| Continue a job | Reply in Telegram when Codex asks a follow-up question. |
-| Know when work is done | Receive the final answer in Telegram, split safely across messages. |
-| Keep normal completion alerts | Enable the optional `Stop` hook for regular Codex app/CLI sessions. |
-| Use a locked Windows PC | Run the local runner from Task Scheduler while the user session remains logged in. |
+Codex Telegram Remote is a local runner plus a Codex plugin. It talks to Telegram through long polling, so there are no public webhooks, no exposed ports, and no cloud worker between Telegram and your machine.
+
+| Select | Prompt | Continue | Notify |
+| --- | --- | --- | --- |
+| Tap `/select` to choose a project. | Send normal Telegram messages as Codex prompts. | Reply when Codex asks a question. | Receive final answers and completion alerts. |
 
 ## Demo
 
@@ -40,7 +52,18 @@ Bot: Job completed
 <full Codex final answer>
 ```
 
-Telegram commands:
+## Features
+
+| Feature | Details |
+| --- | --- |
+| Tappable project picker | `/select` opens an inline Telegram keyboard with project pagination and the current project highlighted. |
+| Normal-message prompts | After a project is selected, non-command messages become Codex prompts for that project. |
+| Follow-up replies | If Codex asks a question, reply in Telegram and the runner resumes the same Codex thread. |
+| Completion messages | Telegram-launched jobs send final answers automatically. Regular Codex tasks can notify through the optional `Stop` hook. |
+| Locked-PC support | Windows setup registers a hidden Task Scheduler job that continues while the screen is locked. |
+| Conservative access | Only `allowedChatIds` can run jobs. Unknown chats are ignored by default. |
+
+## Commands
 
 ```text
 /select          choose the active project
