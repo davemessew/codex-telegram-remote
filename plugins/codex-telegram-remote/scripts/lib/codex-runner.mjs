@@ -4,7 +4,13 @@ import path from "node:path";
 
 const MAX_CAPTURED_OUTPUT_CHARS = 200_000;
 
-export function buildCodexInvocation({ codexBin = "codex", cwd, prompt, sessionId }) {
+export function buildCodexInvocation({
+  codexBin = "codex",
+  cwd,
+  prompt,
+  sessionId,
+  skipGitRepoCheck = false,
+} = {}) {
   if (sessionId) {
     return {
       command: codexBin,
@@ -12,9 +18,15 @@ export function buildCodexInvocation({ codexBin = "codex", cwd, prompt, sessionI
     };
   }
 
+  const args = ["exec", "--json", "-C", cwd];
+  if (skipGitRepoCheck) {
+    args.push("--skip-git-repo-check");
+  }
+  args.push(prompt);
+
   return {
     command: codexBin,
-    args: ["exec", "--json", "-C", cwd, prompt],
+    args,
   };
 }
 
@@ -107,6 +119,7 @@ export class CodexJobRunner {
         codexBin: this.codexBin,
         cwd: project.path,
         prompt,
+        skipGitRepoCheck: !isInsideGitWorkTree(project.path),
       }),
       cwd: project.path,
     });
@@ -235,6 +248,22 @@ export function discoverCodexBinaryFromCandidates({ candidates, exists }) {
   }
 
   return "codex";
+}
+
+export function isInsideGitWorkTree(startPath, { exists = fs.existsSync } = {}) {
+  let current = path.resolve(startPath);
+
+  while (true) {
+    if (exists(path.join(current, ".git"))) {
+      return true;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return false;
+    }
+    current = parent;
+  }
 }
 
 function windowsCodexCandidates() {

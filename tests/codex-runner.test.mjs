@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
   buildCodexInvocation,
   discoverCodexBinaryFromCandidates,
+  isInsideGitWorkTree,
   looksLikeUserInputRequest,
   parseCodexJsonl,
 } from "../plugins/codex-telegram-remote/scripts/lib/codex-runner.mjs";
@@ -18,6 +22,21 @@ test("buildCodexInvocation starts Codex in the selected project", () => {
     {
       command: "codex",
       args: ["exec", "--json", "-C", "C:/Repo", "fix tests"],
+    },
+  );
+});
+
+test("buildCodexInvocation can skip the Git repository check for trusted non-repo roots", () => {
+  assert.deepEqual(
+    buildCodexInvocation({
+      codexBin: "codex",
+      cwd: "C:/TrustedParent",
+      prompt: "fix tests",
+      skipGitRepoCheck: true,
+    }),
+    {
+      command: "codex",
+      args: ["exec", "--json", "-C", "C:/TrustedParent", "--skip-git-repo-check", "fix tests"],
     },
   );
 });
@@ -65,4 +84,21 @@ test("discoverCodexBinaryFromCandidates prefers an existing app-local binary ove
     }),
     "C:/Users/example/AppData/Local/OpenAI/Codex/bin/hash/codex.exe",
   );
+});
+
+test("isInsideGitWorkTree detects parent Git directories", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-repo-"));
+  const nested = path.join(repoRoot, "nested", "project");
+  fs.mkdirSync(path.join(repoRoot, ".git"));
+  fs.mkdirSync(nested, { recursive: true });
+
+  assert.equal(isInsideGitWorkTree(nested), true);
+});
+
+test("isInsideGitWorkTree returns false for trusted parent folders that are not repos", () => {
+  const parentRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-parent-"));
+  const nested = path.join(parentRoot, "child");
+  fs.mkdirSync(nested, { recursive: true });
+
+  assert.equal(isInsideGitWorkTree(parentRoot), false);
 });

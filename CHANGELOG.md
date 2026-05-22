@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Allowed Telegram-launched jobs to run from trusted project roots that are not Git repositories by adding `--skip-git-repo-check` only for non-repo roots.
+
 ## 0.1.6
 
 - Fixed Codex project discovery for double-quoted Windows paths whose folder names start with `t` or `n`.
