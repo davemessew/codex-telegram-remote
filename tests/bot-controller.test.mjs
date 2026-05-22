@@ -175,7 +175,7 @@ test("normal message with a selected project starts a Codex job", async () => {
   assert.equal(calls[2].prompt, "run tests");
   assert.match(calls.at(-1).text, /^Job completed\nJob: job-1\nProject: telegram/);
   assert.match(calls.at(-1).text, /Summary:\nfinished summary/);
-  assert.match(calls.at(-1).text, /Final answer:\nfinished/);
+  assert.match(calls.at(-1).text, /Details:\nfinished/);
 });
 
 test("unauthorized chats are rejected before any Codex work starts", async () => {
@@ -257,7 +257,7 @@ test("sendFullFinalAnswer false sends status instead of full output", async () =
 
   assert.match(calls.at(-1).text, /^Job: job-1\nStatus: completed/);
   assert.match(calls.at(-1).text, /Summary:\nfinished summary/);
-  assert.equal(calls.at(-1).text.includes("Final answer:"), false);
+  assert.equal(calls.at(-1).text.includes("Details:"), false);
 });
 
 test("status without job id uses the current project's latest job", async () => {

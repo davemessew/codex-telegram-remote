@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Stripped embedded `Summary` sections out of completion details so Telegram messages do not repeat the same content under multiple headings.
+
 ## 0.1.2
 
 - Added tappable `/jobs` selection for recent jobs.

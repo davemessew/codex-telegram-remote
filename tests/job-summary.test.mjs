@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  extractDetailsText,
   extractSummarySection,
   summarizeJobResult,
 } from "../plugins/codex-telegram-remote/scripts/lib/job-summary.mjs";
@@ -36,6 +37,26 @@ test("summarizeJobResult falls back to the first paragraph", () => {
       finalMessage: "Implemented the requested change.\n\nTests pass.",
     }),
     "Implemented the requested change.",
+  );
+});
+
+test("extractDetailsText removes summary sections and unwraps details", () => {
+  assert.equal(
+    extractDetailsText([
+      "Summary:",
+      "Short version.",
+      "",
+      "Details:",
+      "Full final answer.",
+    ].join("\n")),
+    "Full final answer.",
+  );
+});
+
+test("extractDetailsText leaves answers without summary unchanged", () => {
+  assert.equal(
+    extractDetailsText("Implemented the change.\n\nTests pass."),
+    "Implemented the change.\n\nTests pass.",
   );
 });
 

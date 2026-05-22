@@ -4,7 +4,7 @@ import {
   formatProjectPickerText,
   parseProjectCallback,
 } from "./project-picker.mjs";
-import { summarizeJobResult } from "./job-summary.mjs";
+import { extractDetailsText, summarizeJobResult } from "./job-summary.mjs";
 import {
   chunkTelegramText,
   isAllowedChat,
@@ -356,6 +356,7 @@ function formatJobCompletion(job) {
 
   const finalMessage = String(job.finalMessage ?? "").trim();
   const summary = readJobSummary(job);
+  const details = extractDetailsText(finalMessage);
   const lines = [
     formatCompletionTitle(job),
     `Job: ${job.jobId}`,
@@ -365,8 +366,8 @@ function formatJobCompletion(job) {
   if (summary) {
     lines.push("", "Summary:", summary);
   }
-  if (finalMessage && finalMessage !== summary) {
-    lines.push("", "Final answer:", finalMessage);
+  if (details && details !== summary) {
+    lines.push("", "Details:", details);
   }
 
   return lines.join("\n");

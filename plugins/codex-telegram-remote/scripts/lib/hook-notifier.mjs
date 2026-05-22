@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { summarizeJobResult } from "./job-summary.mjs";
+import { extractDetailsText, summarizeJobResult } from "./job-summary.mjs";
 
 export function shouldSuppressHookNotification({ env = process.env } = {}) {
   return Boolean(env.CODEX_TELEGRAM_REMOTE_JOB_ID);
@@ -28,11 +28,12 @@ export function buildStopNotification({
     explicitSummary: readPayloadSummary(payload),
     finalMessage,
   });
+  const details = extractDetailsText(message);
   if (summary) {
     lines.push("", "Summary:", summary);
   }
-  if (sendFullFinalAnswer !== false && message && message !== summary) {
-    lines.push("", "Final answer:", message);
+  if (sendFullFinalAnswer !== false && details && details !== summary) {
+    lines.push("", "Details:", details);
   }
   return lines.join("\n");
 }

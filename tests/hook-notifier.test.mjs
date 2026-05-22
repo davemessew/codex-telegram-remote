@@ -36,7 +36,7 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
       finalMessage: "All tests pass.",
       job,
     }),
-    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nSummary:\nTests passed.\n\nFinal answer:\nAll tests pass.",
+    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nSummary:\nTests passed.\n\nDetails:\nAll tests pass.",
   );
 });
 

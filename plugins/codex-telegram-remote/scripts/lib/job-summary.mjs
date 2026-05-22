@@ -41,6 +41,35 @@ export function extractSummarySection(text) {
   return "";
 }
 
+export function extractDetailsText(text) {
+  const normalizedText = String(text ?? "").replace(/\r\n/g, "\n");
+  const lines = normalizedText.split("\n");
+  const keptLines = [];
+  let removedSummary = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (matchInlineSummary(line)) {
+      removedSummary = true;
+      continue;
+    }
+    if (!isSummaryHeading(line)) {
+      keptLines.push(line);
+      continue;
+    }
+
+    removedSummary = true;
+    index += 1;
+    while (index < lines.length && !isLikelyNextSection(lines[index])) {
+      index += 1;
+    }
+    index -= 1;
+  }
+
+  const details = normalizeSummary(stripLeadingDetailsHeading(keptLines.join("\n")));
+  return removedSummary ? details : normalizeSummary(normalizedText);
+}
+
 function fallbackSummary(text) {
   const normalized = normalizeSummary(text);
   if (!normalized) {
@@ -90,4 +119,19 @@ function isLikelyNextSection(line) {
   return /^#{1,6}\s+\S/.test(value)
     || /^\*\*[A-Z][^*]{1,80}\*\*:?\s*$/.test(value)
     || /^[A-Z][A-Za-z0-9 /_-]{1,80}:\s*$/.test(value);
+}
+
+function stripLeadingDetailsHeading(text) {
+  const lines = String(text ?? "").replace(/\r\n/g, "\n").split("\n");
+  while (lines.length > 0 && !lines[0].trim()) {
+    lines.shift();
+  }
+  if (lines.length > 0 && isDetailsHeading(lines[0])) {
+    lines.shift();
+  }
+  return lines.join("\n");
+}
+
+function isDetailsHeading(line) {
+  return /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:details|final answer)(?:\*\*)?\s*:?\s*$/i.test(String(line ?? ""));
 }
