@@ -97,30 +97,37 @@ npm.cmd test
 
 The runner itself uses `node`, not `npm`.
 
-## Hook Notifications Do Not Fire
+## Completion Notifications Do Not Fire
 
-Regular Codex task notifications require all of:
+Desktop task notifications are sent by the running Telegram runner when it sees local transcript completion events. App/CLI task notifications can also be sent by the bundled hook.
+
+Check:
+
+- The Windows scheduled task or manual runner process is running.
+- `completionChatIds` is configured.
+- The configured `codexHome` points at the Codex home that contains `sessions/`.
+
+Hook-based notifications additionally require all of:
 
 - Plugin installed and enabled.
 - `[features].plugin_hooks = true` in Codex config.
 - Hook reviewed and trusted with `/hooks`.
-- `completionChatIds` configured.
 - Runner config available to the hook at the default path or through `CODEX_TELEGRAM_CONFIG`.
 
 Telegram-launched jobs do not depend on hooks for final-answer delivery.
 
 ## Regular Jobs Do Not Show In `/jobs`
 
-Jobs started in the Codex app or CLI only become visible to Telegram after the optional `Stop` hook runs. If the completion notification arrives, the job should include a `Select job` button and appear in `/jobs` for that same Telegram chat.
+Jobs started in the Codex desktop app become visible after the runner sees their local transcript completion event. App/CLI jobs become visible after the optional `Stop` hook runs. If the completion notification arrives, the job should include a `Select job` button and appear in `/jobs` for that same Telegram chat.
 
 Check:
 
 - `completionChatIds` includes the chat where you expect to manage the job.
 - That chat is also in `allowedChatIds` if you want to tap job buttons or run `/status` and `/tail`.
-- The hook can write to the configured `statePath`.
+- The runner or hook can write to the configured `statePath`.
 - The task was not launched from Telegram; Telegram-launched jobs are tracked directly by the runner.
 
-## Completion Summary Missing After Updating
+## Completion Details Missing After Updating
 
 Codex runs plugin hooks from its installed plugin cache. If you update a local checkout but do not reinstall the plugin, the scheduled runner can use new files while the `Stop` hook still uses old cached files.
 
@@ -133,7 +140,7 @@ Stop-ScheduledTask -TaskName CodexTelegramRemote
 Start-ScheduledTask -TaskName CodexTelegramRemote
 ```
 
-`sendFullFinalAnswer` defaults to `true`. Leave it unset or set it to `true` to include the full final answer after the summary.
+`sendFullFinalAnswer` defaults to `true`. Leave it unset or set it to `true` to include the exact final answer under `Details:`.
 
 ## Codex Asks for Approval While Remote
 

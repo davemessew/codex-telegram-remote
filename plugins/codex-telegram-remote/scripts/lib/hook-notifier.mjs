@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { extractDetailsText, summarizeJobResult } from "./job-summary.mjs";
+import { normalizeTelegramDisplayText } from "./telegram.mjs";
 
 export function shouldSuppressHookNotification({ env = process.env } = {}) {
   return Boolean(env.CODEX_TELEGRAM_REMOTE_JOB_ID);
@@ -23,17 +23,13 @@ export function buildStopNotification({
   } else if (payload.cwd) {
     lines.push(`Project: ${payload.cwd}`);
   }
-  const message = String(finalMessage ?? "").trim();
-  const summary = String(job?.summary ?? "").trim() || summarizeJobResult({
-    explicitSummary: readPayloadSummary(payload),
-    finalMessage,
-  });
-  const details = extractDetailsText(message, { summary });
+  const message = normalizeTelegramDisplayText(finalMessage);
+  const summary = String(job?.summary ?? "").trim() || normalizeText(readPayloadSummary(payload));
   if (summary) {
     lines.push("", "Summary:", summary);
   }
-  if (sendFullFinalAnswer !== false && details && details !== summary) {
-    lines.push("", "Details:", details);
+  if (sendFullFinalAnswer !== false && message) {
+    lines.push("", "Details:", message);
   }
   return lines.join("\n");
 }
@@ -47,11 +43,8 @@ export function buildExternalJob({
 } = {}) {
   const project = resolvePayloadProject(payload, projects);
   const timestamp = now.toISOString();
-  const message = String(finalMessage ?? "").trim();
-  const summary = summarizeJobResult({
-    explicitSummary: readPayloadSummary(payload),
-    finalMessage: message,
-  });
+  const message = normalizeTelegramDisplayText(finalMessage);
+  const summary = normalizeText(readPayloadSummary(payload));
 
   return {
     jobId: createHookJobId({ payload, chatId }),
@@ -89,15 +82,28 @@ export function readFinalMessageFromTranscript(transcriptPath, { allowedRoots = 
     }
     try {
       const event = JSON.parse(line);
-      const text = event.item?.type === "agent_message" ? event.item.text : event.message?.content;
+      const text = readTranscriptFinalText(event);
       if (typeof text === "string") {
-        finalMessage = text;
+        finalMessage = normalizeTelegramDisplayText(text);
       }
     } catch {
       // Ignore non-JSON transcript lines.
     }
   }
   return finalMessage;
+}
+
+function readTranscriptFinalText(event) {
+  if (event?.type === "event_msg" && event.payload?.type === "task_complete") {
+    return event.payload.last_agent_message;
+  }
+  if (event?.type === "task_complete") {
+    return event.last_agent_message ?? event.payload?.last_agent_message;
+  }
+  if (event.item?.type === "agent_message") {
+    return event.item.text;
+  }
+  return event.message?.content;
 }
 
 function isPathInsideAnyRoot(filePath, roots) {
@@ -166,4 +172,8 @@ function readPayloadSummary(payload = {}) {
     return payload.taskSummary;
   }
   return "";
+}
+
+function normalizeText(value) {
+  return normalizeTelegramDisplayText(value);
 }

@@ -2,8 +2,6 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { summarizeJobResult } from "./job-summary.mjs";
-
 const MAX_CAPTURED_OUTPUT_CHARS = 200_000;
 
 export function buildCodexInvocation({ codexBin = "codex", cwd, prompt, sessionId }) {
@@ -195,10 +193,7 @@ export class CodexJobRunner {
           ? looksLikeUserInputRequest(parsed.finalMessage) ? "awaiting_reply" : "completed"
           : "failed";
         const finalMessage = parsed.finalMessage || stderr.trim() || `Codex exited with code ${exitCode}.`;
-        const summary = summarizeJobResult({
-          explicitSummary: parsed.summary,
-          finalMessage,
-        });
+        const summary = normalizeText(parsed.summary);
         const updated = this.state.updateJob(job.jobId, {
           status,
           threadId: parsed.threadId ?? job.threadId,
@@ -283,6 +278,15 @@ function tail(value, maxLength = 4000) {
 function appendBounded(current, addition, maxLength = MAX_CAPTURED_OUTPUT_CHARS) {
   const next = current + addition;
   return next.length <= maxLength ? next : next.slice(-maxLength);
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
 }
 
 function readEventSummary(event) {

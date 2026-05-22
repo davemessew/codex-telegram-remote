@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+- Added a runner-side transcript monitor that sends Telegram completion notifications from desktop `task_complete` events when the Stop hook path misses them.
+- Updated completion formatting so `Details:` contains the exact final answer text and summaries are only shown when explicitly provided.
+- Normalized escaped newline sequences before sending Telegram messages so `\n` renders as real line breaks.
+- Taught the Stop hook transcript reader to use desktop `task_complete` final answers.
+- Added dedupe between monitor and hook notifications for the same transcript completion.
+
 ## 0.1.4
 
 - Removed fallback summary text from completion details so one-paragraph summaries are not repeated at the top of the details block.

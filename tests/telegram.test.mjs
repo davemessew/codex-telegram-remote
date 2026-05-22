@@ -5,6 +5,7 @@ import {
   chunkTelegramText,
   isAllowedChat,
   isTelegramGetUpdatesConflict,
+  normalizeTelegramDisplayText,
   normalizeTelegramMessage,
   TelegramApiError,
 } from "../plugins/codex-telegram-remote/scripts/lib/telegram.mjs";
@@ -19,6 +20,20 @@ test("chunkTelegramText splits long messages under the configured limit", () => 
 
 test("chunkTelegramText preserves short messages", () => {
   assert.deepEqual(chunkTelegramText("short", 8), ["short"]);
+});
+
+test("normalizeTelegramDisplayText turns escaped line breaks into Telegram line breaks", () => {
+  assert.equal(
+    normalizeTelegramDisplayText("Summary:\\nDone.\\n\\nDetails:\\nTests pass."),
+    "Summary:\nDone.\n\nDetails:\nTests pass.",
+  );
+});
+
+test("normalizeTelegramDisplayText preserves isolated escaped line breaks inside normal multiline text", () => {
+  assert.equal(
+    normalizeTelegramDisplayText("Use `\\n` in a string.\nThis is already multiline."),
+    "Use `\\n` in a string.\nThis is already multiline.",
+  );
 });
 
 test("isAllowedChat only accepts configured chat IDs", () => {

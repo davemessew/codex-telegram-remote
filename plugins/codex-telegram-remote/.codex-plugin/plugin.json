@@ -1,6 +1,6 @@
 {
   "name": "codex-telegram-remote",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Run Codex from Telegram with a tappable project picker and completion notifications.",
   "author": {
     "name": "davemessew",

@@ -11,7 +11,7 @@ import {
   shouldSuppressHookNotification,
 } from "./lib/hook-notifier.mjs";
 import { createFileStateStore } from "./lib/state-store.mjs";
-import { TelegramClient, chunkTelegramText } from "./lib/telegram.mjs";
+import { TelegramClient, chunkTelegramText, normalizeTelegramDisplayText } from "./lib/telegram.mjs";
 
 async function main() {
   if (shouldSuppressHookNotification()) {
@@ -43,6 +43,9 @@ async function main() {
       chatId,
       projects,
     });
+    if (state && hasEquivalentJob(state, job)) {
+      continue;
+    }
     state?.addJob(job);
     const notification = buildStopNotification({
       payload,
@@ -107,6 +110,21 @@ function buildSingleJobKeyboard(job) {
       ],
     ],
   };
+}
+
+function hasEquivalentJob(state, nextJob) {
+  return state.listJobs(nextJob.chatId).some((job) => (
+    normalizePath(job.transcriptPath) === normalizePath(nextJob.transcriptPath)
+    && normalizeText(job.finalMessage) === normalizeText(nextJob.finalMessage)
+  ));
+}
+
+function normalizeText(value) {
+  return normalizeTelegramDisplayText(value);
+}
+
+function normalizePath(value) {
+  return String(value ?? "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
 }
 
 main().catch((error) => {

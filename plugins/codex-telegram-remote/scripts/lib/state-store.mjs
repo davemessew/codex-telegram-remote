@@ -148,6 +148,40 @@ class StateStore {
     this.changed();
   }
 
+  getCompletionMonitorStartedAt() {
+    this.refresh();
+    return this.state.completionMonitor.startedAt ?? null;
+  }
+
+  initializeCompletionMonitor({ startedAt, fileOffsets = {} } = {}) {
+    this.state.completionMonitor.startedAt = startedAt ?? new Date().toISOString();
+    this.state.completionMonitor.fileOffsets = {
+      ...this.state.completionMonitor.fileOffsets,
+      ...fileOffsets,
+    };
+    this.changed();
+  }
+
+  getCompletionMonitorFileOffset(filePath) {
+    this.refresh();
+    return this.state.completionMonitor.fileOffsets[String(filePath)] ?? null;
+  }
+
+  setCompletionMonitorFileOffset(filePath, offset) {
+    this.state.completionMonitor.fileOffsets[String(filePath)] = Number(offset);
+    this.changed();
+  }
+
+  hasCompletionNotification(notificationId) {
+    this.refresh();
+    return Boolean(this.state.completionMonitor.notified[String(notificationId)]);
+  }
+
+  markCompletionNotification(notificationId, notifiedAt = new Date().toISOString()) {
+    this.state.completionMonitor.notified[String(notificationId)] = notifiedAt;
+    this.changed();
+  }
+
   changed() {
     if (this.onChange) {
       this.onChange();
@@ -164,12 +198,18 @@ function normalizeStateSnapshot(initialState = {}) {
     waitingJobs: {},
     jobs: {},
     botMessages: {},
+    completionMonitor: {
+      startedAt: null,
+      fileOffsets: {},
+      notified: {},
+    },
     ...source,
     selectedProjects: source.selectedProjects ?? {},
     selectedJobs: source.selectedJobs ?? {},
     waitingJobs: source.waitingJobs ?? {},
     jobs: source.jobs ?? {},
     botMessages: source.botMessages ?? {},
+    completionMonitor: normalizeCompletionMonitor(source.completionMonitor),
   };
 }
 
@@ -200,6 +240,7 @@ function mergeStateSnapshots(latestState = {}, currentState = {}) {
     waitingJobs: current.waitingJobs,
     jobs: { ...latest.jobs, ...current.jobs },
     botMessages: { ...latest.botMessages, ...current.botMessages },
+    completionMonitor: mergeCompletionMonitorSnapshots(latest.completionMonitor, current.completionMonitor),
   };
 }
 
@@ -208,4 +249,27 @@ function maxLastUpdateId(left, right) {
     return Math.max(left, right);
   }
   return right ?? left ?? null;
+}
+
+function normalizeCompletionMonitor(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    startedAt: typeof source.startedAt === "string" ? source.startedAt : null,
+    fileOffsets: source.fileOffsets && typeof source.fileOffsets === "object" && !Array.isArray(source.fileOffsets)
+      ? source.fileOffsets
+      : {},
+    notified: source.notified && typeof source.notified === "object" && !Array.isArray(source.notified)
+      ? source.notified
+      : {},
+  };
+}
+
+function mergeCompletionMonitorSnapshots(latestMonitor = {}, currentMonitor = {}) {
+  const latest = normalizeCompletionMonitor(latestMonitor);
+  const current = normalizeCompletionMonitor(currentMonitor);
+  return {
+    startedAt: current.startedAt ?? latest.startedAt,
+    fileOffsets: { ...latest.fileOffsets, ...current.fileOffsets },
+    notified: { ...latest.notified, ...current.notified },
+  };
 }

@@ -16,8 +16,9 @@ Use this skill when the user asks about installing or operating the Telegram rem
 - Unauthorized chats are ignored unless `replyToUnauthorized` is explicitly enabled for setup debugging.
 - Codex inherits the user's existing Codex config, sandbox, approvals, and model settings.
 - The runner can keep working while the PC is locked if the user is logged in, the machine is awake, and networking is available.
-- Regular Codex completion notifications use the bundled `Stop` hook. Plugin hooks require `[features].plugin_hooks = true` and hook trust review. Hook notifications are recorded as completed jobs so they can be selected from Telegram.
-- Completion messages include a task summary. If `sendFullFinalAnswer` is enabled, the full final answer is sent after the summary.
+- Regular Codex desktop completion notifications are watched by the runner from local transcript `task_complete` events. App/CLI completion notifications can also use the bundled `Stop` hook; plugin hooks require `[features].plugin_hooks = true` and hook trust review.
+- Completion notifications are recorded as completed jobs so they can be selected from Telegram.
+- Completion messages include the exact final answer under `Details:` when `sendFullFinalAnswer` is enabled. A separate summary is only shown when one is explicitly provided.
 
 ## Useful files
 

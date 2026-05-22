@@ -108,6 +108,16 @@ export function chunkTelegramText(text, limit = 3900) {
   return chunks;
 }
 
+export function normalizeTelegramDisplayText(text) {
+  return decodeEscapedLineBreaks(String(text ?? ""))
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+}
+
 export function isAllowedChat(chatId, allowedChatIds) {
   return allowedChatIds.includes(String(chatId));
 }
@@ -153,4 +163,21 @@ export function isTelegramGetUpdatesConflict(error) {
     && error.method === "getUpdates"
     && error.errorCode === 409
     && /conflict|other getupdates request/i.test(error.description);
+}
+
+function decodeEscapedLineBreaks(text) {
+  const escapedBreakCount = (text.match(/(?:\\r\\n|\\n|\\r)/g) ?? []).length;
+  if (escapedBreakCount === 0) {
+    return text;
+  }
+
+  const realBreakCount = (text.match(/\n/g) ?? []).length;
+  if (realBreakCount > 0 && escapedBreakCount <= realBreakCount) {
+    return text;
+  }
+
+  return text
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n");
 }

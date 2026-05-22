@@ -8,6 +8,7 @@ import {
   resolveConfiguredProjects,
 } from "./lib/config.mjs";
 import { createBotController } from "./lib/bot-controller.mjs";
+import { startCompletionMonitor } from "./lib/completion-monitor.mjs";
 import { CodexJobRunner } from "./lib/codex-runner.mjs";
 import { createFileStateStore } from "./lib/state-store.mjs";
 import {
@@ -25,6 +26,7 @@ async function main() {
     return;
   }
 
+  let stopCompletionMonitor = null;
   try {
     const projects = resolveConfiguredProjects({
       config,
@@ -45,6 +47,12 @@ async function main() {
       codex,
     });
 
+    stopCompletionMonitor = startCompletionMonitor({
+      config,
+      projects,
+      state,
+      telegram,
+    });
     await telegram.setMyCommands(telegramCommands());
     await runPollingLoop({
       telegram,
@@ -53,6 +61,7 @@ async function main() {
       timeout: config.pollTimeoutSeconds,
     });
   } finally {
+    stopCompletionMonitor?.();
     lock.release?.();
   }
 }

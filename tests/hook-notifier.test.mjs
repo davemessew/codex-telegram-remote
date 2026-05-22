@@ -43,10 +43,59 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
 test("buildStopNotification omits final answer when sendFullFinalAnswer is false", () => {
   assert.equal(
     buildStopNotification({
-      finalMessage: "Summary:\nShort version.\n\nDetails:\nFull final answer.",
+      finalMessage: "Full final answer.",
+      job: { summary: "Short version." },
       sendFullFinalAnswer: false,
     }),
     "Codex task completed\n\nSummary:\nShort version.",
+  );
+});
+
+test("buildStopNotification keeps the full final answer as details without a fabricated summary", () => {
+  const finalMessage = [
+    "Fixed. The bug was the fallback summary case.",
+    "",
+    "Now details remove the summary prefix:",
+    "",
+    "Summary:",
+    "Implemented the change.",
+    "",
+    "Details:",
+    "Tests pass.",
+    "Verified:",
+    "",
+    "npm.cmd test: 60 passing",
+  ].join("\n");
+
+  assert.equal(
+    buildStopNotification({
+      finalMessage,
+      job: {
+        jobId: "hook-abc123",
+        projectName: "Repo",
+      },
+    }),
+    [
+      "Codex task completed",
+      "Job: hook-abc123",
+      "Project: Repo",
+      "",
+      "Details:",
+      finalMessage,
+    ].join("\n"),
+  );
+});
+
+test("buildStopNotification renders escaped newline sequences as real line breaks", () => {
+  assert.equal(
+    buildStopNotification({
+      finalMessage: "Fixed.\\n\\nDetails:\\nTests pass.",
+      job: {
+        jobId: "hook-abc123",
+        projectName: "Repo",
+      },
+    }),
+    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nDetails:\nFixed.\n\nDetails:\nTests pass.",
   );
 });
 
@@ -77,7 +126,7 @@ test("buildExternalJob records regular Codex completions for a Telegram chat", (
   assert.equal(job.projectPath, "C:/work/telegram");
   assert.equal(job.threadId, "thread-1");
   assert.equal(job.finalMessage, "All tests pass.");
-  assert.equal(job.summary, "All tests pass.");
+  assert.equal(job.summary, "");
   assert.equal(job.status, "completed");
   assert.equal(job.updatedAt, "2026-05-22T00:00:00.000Z");
 });
@@ -102,5 +151,19 @@ test("readFinalMessageFromTranscript reads final message inside allowed roots", 
   assert.equal(
     readFinalMessageFromTranscript(transcriptPath, { allowedRoots: [allowedRoot] }),
     "safe",
+  );
+});
+
+test("readFinalMessageFromTranscript reads desktop task_complete messages", () => {
+  const allowedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-home-"));
+  const transcriptPath = path.join(allowedRoot, "session.jsonl");
+  fs.writeFileSync(
+    transcriptPath,
+    '{"type":"event_msg","payload":{"type":"task_complete","last_agent_message":"final answer"}}\n',
+  );
+
+  assert.equal(
+    readFinalMessageFromTranscript(transcriptPath, { allowedRoots: [allowedRoot] }),
+    "final answer",
   );
 });

@@ -4,10 +4,10 @@ import {
   formatProjectPickerText,
   parseProjectCallback,
 } from "./project-picker.mjs";
-import { extractDetailsText, summarizeJobResult } from "./job-summary.mjs";
 import {
   chunkTelegramText,
   isAllowedChat,
+  normalizeTelegramDisplayText,
   normalizeTelegramMessage,
 } from "./telegram.mjs";
 
@@ -264,7 +264,10 @@ export function createBotController({
       return;
     }
     const job = resolved.job;
-    await telegram.sendMessage(chatId, job.finalMessage || job.stderrTail || job.stdoutTail || "No output captured yet.");
+    await telegram.sendMessage(
+      chatId,
+      normalizeTelegramDisplayText(job.finalMessage || job.stderrTail || job.stdoutTail || "No output captured yet."),
+    );
   }
 
   async function sendHelp(chatId) {
@@ -351,12 +354,11 @@ function formatJobStatus(job) {
 
 function formatJobCompletion(job) {
   if (job.status === "awaiting_reply") {
-    return job.finalMessage || formatJobStatus(job);
+    return normalizeTelegramDisplayText(job.finalMessage) || formatJobStatus(job);
   }
 
-  const finalMessage = String(job.finalMessage ?? "").trim();
+  const finalMessage = normalizeTelegramDisplayText(job.finalMessage);
   const summary = readJobSummary(job);
-  const details = extractDetailsText(finalMessage, { summary });
   const lines = [
     formatCompletionTitle(job),
     `Job: ${job.jobId}`,
@@ -366,8 +368,8 @@ function formatJobCompletion(job) {
   if (summary) {
     lines.push("", "Summary:", summary);
   }
-  if (details && details !== summary) {
-    lines.push("", "Details:", details);
+  if (finalMessage) {
+    lines.push("", "Details:", finalMessage);
   }
 
   return lines.join("\n");
@@ -426,7 +428,7 @@ function truncateButtonText(value, limit = 56) {
 }
 
 function readJobSummary(job) {
-  return String(job.summary ?? "").trim() || summarizeJobResult({ finalMessage: job.finalMessage });
+  return String(job.summary ?? "").trim();
 }
 
 function isTerminalJob(job) {
