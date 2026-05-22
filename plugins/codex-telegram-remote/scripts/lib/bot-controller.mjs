@@ -148,6 +148,17 @@ export function createBotController({
       : state.getWaitingJob(message.chatId);
     if (waitingJobId) {
       try {
+        if (typeof codex.resumeJobDetached === "function") {
+          const job = codex.resumeJobDetached({
+            jobId: waitingJobId,
+            prompt: message.text,
+            onComplete: (completedJob) => sendDetachedJobResult(message.chatId, completedJob),
+            onError: (error) => sendDetachedJobError(message.chatId, "resume", error),
+          });
+          await sendJobStarted(message.chatId, job, "Job resumed");
+          return;
+        }
+
         const job = await codex.resumeJob({ jobId: waitingJobId, prompt: message.text });
         await sendJobResult(message.chatId, job);
       } catch (error) {
@@ -173,6 +184,18 @@ export function createBotController({
     }
 
     try {
+      if (typeof codex.startJobDetached === "function") {
+        const job = codex.startJobDetached({
+          chatId: message.chatId,
+          project,
+          prompt: message.text,
+          onComplete: (completedJob) => sendDetachedJobResult(message.chatId, completedJob),
+          onError: (error) => sendDetachedJobError(message.chatId, "start", error),
+        });
+        await sendJobStarted(message.chatId, job, "Job started");
+        return;
+      }
+
       const job = await codex.startJob({
         chatId: message.chatId,
         project,
@@ -308,6 +331,37 @@ export function createBotController({
       if (sent?.message_id && job.status === "awaiting_reply") {
         state.mapBotMessage(chatId, sent.message_id, job.jobId);
       }
+    }
+  }
+
+  async function sendJobStarted(chatId, job, title) {
+    state.setSelectedJob?.(chatId, job.jobId);
+    state.clearWaitingJob(chatId);
+    await telegram.sendMessage(
+      chatId,
+      [
+        title,
+        `Job: ${job.jobId}`,
+        job.projectName ? `Project: ${job.projectName}` : "",
+        "",
+        "Use /status or /tail while it runs.",
+      ].filter(Boolean).join("\n"),
+    );
+  }
+
+  async function sendDetachedJobResult(chatId, job) {
+    try {
+      await sendJobResult(chatId, job);
+    } catch (error) {
+      console.error(`[codex-telegram-remote] could not send job ${job.jobId} result: ${error.stack ?? error.message}`);
+    }
+  }
+
+  async function sendDetachedJobError(chatId, action, error) {
+    try {
+      await telegram.sendMessage(chatId, `Codex job failed to ${action}: ${error.message}`);
+    } catch (sendError) {
+      console.error(`[codex-telegram-remote] could not send job ${action} error: ${sendError.stack ?? sendError.message}`);
     }
   }
 

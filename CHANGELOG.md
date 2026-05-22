@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8
+
+- Kept Telegram polling responsive while Codex jobs run by launching prompt and resume work in the background.
+- Preserved cancelled job status when the killed child process later exits.
+- Added regression coverage for `/status` working while a Telegram-launched job is still running.
+
 ## 0.1.7
 
 - Allowed Telegram-launched jobs to run from trusted project roots that are not Git repositories by adding `--skip-git-repo-check` only for non-repo roots.

@@ -178,6 +178,98 @@ test("normal message with a selected project starts a Codex job", async () => {
   assert.match(calls.at(-1).text, /Details:\nfinished/);
 });
 
+test("detached prompt handling keeps commands responsive while a job runs", async () => {
+  const calls = [];
+  const jobs = new Map();
+  const state = createMemoryStateStore();
+  let completeJob;
+  const telegram = {
+    sendMessage: async (chatId, text, options) => {
+      calls.push({ method: "sendMessage", chatId, text, options });
+      return { message_id: calls.length };
+    },
+    editMessageText: async (chatId, messageId, text, options) => {
+      calls.push({ method: "editMessageText", chatId, messageId, text, options });
+    },
+    answerCallbackQuery: async (callbackQueryId, text) => {
+      calls.push({ method: "answerCallbackQuery", callbackQueryId, text });
+    },
+  };
+  const codex = {
+    startJobDetached: ({ chatId, project, prompt, onComplete }) => {
+      calls.push({ method: "startJobDetached", chatId, project, prompt });
+      const job = {
+        jobId: "job-detached",
+        chatId: String(chatId),
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
+        status: "running",
+        updatedAt: "2026-05-22T00:00:00.000Z",
+      };
+      jobs.set(job.jobId, job);
+      completeJob = async () => {
+        const completed = {
+          ...job,
+          status: "completed",
+          finalMessage: "done",
+          summary: "done summary",
+          updatedAt: "2026-05-22T00:01:00.000Z",
+        };
+        jobs.set(job.jobId, completed);
+        await onComplete(completed);
+      };
+      return job;
+    },
+    listJobs: (chatId) => [...jobs.values()]
+      .filter((job) => !chatId || job.chatId === String(chatId))
+      .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? ""))),
+    cancelJob: async () => false,
+  };
+  const controller = createBotController({
+    config: {
+      allowedChatIds: ["123"],
+      telegramChunkSize: 3900,
+      sendFullFinalAnswer: true,
+    },
+    projects,
+    state,
+    telegram,
+    codex,
+  });
+
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-1",
+      data: "select:telegram",
+      message: { message_id: 10, chat: { id: 123 } },
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "long task",
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 3,
+      chat: { id: 123 },
+      text: "/status",
+    },
+  });
+
+  assert.equal(calls[2].method, "startJobDetached");
+  assert.match(calls[3].text, /^Job started\nJob: job-detached\nProject: telegram/);
+  assert.match(calls[4].text, /^Job: job-detached\nStatus: running/);
+
+  await completeJob();
+  assert.match(calls.at(-1).text, /^Job completed\nJob: job-detached\nProject: telegram/);
+  assert.match(calls.at(-1).text, /Summary:\ndone summary/);
+  assert.match(calls.at(-1).text, /Details:\ndone/);
+});
+
 test("normal message with a legacy selected project id starts the corrected project", async () => {
   const calls = [];
   const state = createMemoryStateStore();

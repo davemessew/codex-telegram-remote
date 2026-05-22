@@ -88,6 +88,7 @@ export class CodexJobRunner {
     this.env = env;
     this.spawn = spawnImpl;
     this.running = new Map();
+    this.cancelled = new Set();
   }
 
   listJobs(chatId) {
@@ -95,10 +96,34 @@ export class CodexJobRunner {
   }
 
   async startJob({ chatId, project, prompt }) {
+    const { job, invocation, cwd } = this.prepareStartJob({ chatId, project, prompt });
+
+    return this.runJob({
+      job,
+      invocation,
+      cwd,
+    });
+  }
+
+  startJobDetached({ chatId, project, prompt, onComplete, onError }) {
+    const { job, invocation, cwd } = this.prepareStartJob({ chatId, project, prompt });
+    this.runJob({
+      job,
+      invocation,
+      cwd,
+    }).then(
+      (completedJob) => onComplete?.(completedJob),
+      (error) => onError?.(error, job),
+    );
+    return job;
+  }
+
+  prepareStartJob({ chatId, project, prompt }) {
     if (this.running.size >= this.maxConcurrentJobs) {
       throw new Error(`Maximum concurrent Codex jobs reached (${this.maxConcurrentJobs}).`);
     }
 
+    const timestamp = new Date().toISOString();
     const jobId = createJobId();
     const job = {
       jobId,
@@ -108,12 +133,12 @@ export class CodexJobRunner {
       projectPath: project.path,
       prompt,
       status: "running",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
     this.state.addJob(job);
 
-    return this.runJob({
+    return {
       job,
       invocation: buildCodexInvocation({
         codexBin: this.codexBin,
@@ -122,10 +147,33 @@ export class CodexJobRunner {
         skipGitRepoCheck: !isInsideGitWorkTree(project.path),
       }),
       cwd: project.path,
-    });
+    };
   }
 
   async resumeJob({ jobId, prompt }) {
+    const { job, invocation, cwd } = this.prepareResumeJob({ jobId, prompt });
+
+    return this.runJob({
+      job,
+      invocation,
+      cwd,
+    });
+  }
+
+  resumeJobDetached({ jobId, prompt, onComplete, onError }) {
+    const { job, invocation, cwd } = this.prepareResumeJob({ jobId, prompt });
+    this.runJob({
+      job,
+      invocation,
+      cwd,
+    }).then(
+      (completedJob) => onComplete?.(completedJob),
+      (error) => onError?.(error, job),
+    );
+    return job;
+  }
+
+  prepareResumeJob({ jobId, prompt }) {
     if (this.running.size >= this.maxConcurrentJobs) {
       throw new Error(`Maximum concurrent Codex jobs reached (${this.maxConcurrentJobs}).`);
     }
@@ -137,33 +185,42 @@ export class CodexJobRunner {
       throw new Error(`Job ${jobId} does not have a Codex thread id yet.`);
     }
 
-    this.state.updateJob(jobId, {
+    const runningJob = this.state.updateJob(jobId, {
       status: "running",
       prompt,
     });
 
-    return this.runJob({
-      job,
+    return {
+      job: runningJob,
       invocation: buildCodexInvocation({
         codexBin: this.codexBin,
         sessionId: job.threadId,
         prompt,
       }),
       cwd: job.projectPath,
-    });
+    };
   }
 
   async cancelJob(jobId) {
     const child = this.running.get(jobId);
     if (!child) {
       if (this.state.getJob(jobId)) {
-        this.state.updateJob(jobId, { status: "cancelled" });
+        this.state.updateJob(jobId, {
+          status: "cancelled",
+          finalMessage: "Cancelled.",
+          completedAt: new Date().toISOString(),
+        });
       }
       return false;
     }
+    this.cancelled.add(jobId);
     child.kill();
     this.running.delete(jobId);
-    this.state.updateJob(jobId, { status: "cancelled" });
+    this.state.updateJob(jobId, {
+      status: "cancelled",
+      finalMessage: "Cancelled.",
+      completedAt: new Date().toISOString(),
+    });
     return true;
   }
 
@@ -201,12 +258,18 @@ export class CodexJobRunner {
       });
       child.on("close", (exitCode) => {
         this.running.delete(job.jobId);
+        const wasCancelled = this.cancelled.has(job.jobId);
+        this.cancelled.delete(job.jobId);
         const parsed = parseCodexJsonl(stdout);
-        const status = exitCode === 0
+        const status = wasCancelled
+          ? "cancelled"
+          : exitCode === 0
           ? looksLikeUserInputRequest(parsed.finalMessage) ? "awaiting_reply" : "completed"
           : "failed";
-        const finalMessage = parsed.finalMessage || stderr.trim() || `Codex exited with code ${exitCode}.`;
-        const summary = normalizeText(parsed.summary);
+        const finalMessage = wasCancelled
+          ? "Cancelled."
+          : parsed.finalMessage || stderr.trim() || `Codex exited with code ${exitCode}.`;
+        const summary = wasCancelled ? "" : normalizeText(parsed.summary);
         const updated = this.state.updateJob(job.jobId, {
           status,
           threadId: parsed.threadId ?? job.threadId,

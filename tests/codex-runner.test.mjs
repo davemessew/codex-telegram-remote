@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,11 +7,13 @@ import { test } from "node:test";
 
 import {
   buildCodexInvocation,
+  CodexJobRunner,
   discoverCodexBinaryFromCandidates,
   isInsideGitWorkTree,
   looksLikeUserInputRequest,
   parseCodexJsonl,
 } from "../plugins/codex-telegram-remote/scripts/lib/codex-runner.mjs";
+import { createMemoryStateStore } from "../plugins/codex-telegram-remote/scripts/lib/state-store.mjs";
 
 test("buildCodexInvocation starts Codex in the selected project", () => {
   assert.deepEqual(
@@ -101,4 +104,47 @@ test("isInsideGitWorkTree returns false for trusted parent folders that are not 
   fs.mkdirSync(nested, { recursive: true });
 
   assert.equal(isInsideGitWorkTree(parentRoot), false);
+});
+
+test("cancelled detached jobs stay cancelled after the child process closes", async () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-cancel-"));
+  fs.mkdirSync(path.join(projectRoot, ".git"));
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.kill = () => {
+    child.killed = true;
+  };
+  const state = createMemoryStateStore();
+  const runner = new CodexJobRunner({
+    codexBin: "codex",
+    state,
+    spawnImpl: () => child,
+    env: {},
+  });
+  let completedJob;
+
+  const job = runner.startJobDetached({
+    chatId: "123",
+    project: {
+      id: "telegram",
+      name: "telegram",
+      path: projectRoot,
+    },
+    prompt: "long task",
+    onComplete: (result) => {
+      completedJob = result;
+    },
+  });
+
+  const cancelled = await runner.cancelJob(job.jobId);
+  child.stdout.emit("data", '{"type":"item.completed","item":{"type":"agent_message","text":"partial output"}}\n');
+  child.emit("close", 1);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(cancelled, true);
+  assert.equal(child.killed, true);
+  assert.equal(completedJob.status, "cancelled");
+  assert.equal(completedJob.finalMessage, "Cancelled.");
+  assert.equal(state.getJob(job.jobId).status, "cancelled");
 });
