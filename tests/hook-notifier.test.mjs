@@ -24,6 +24,7 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
   const job = {
     jobId: "hook-abc123",
     projectName: "Repo",
+    summary: "Tests passed.",
   };
 
   assert.equal(
@@ -35,7 +36,7 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
       finalMessage: "All tests pass.",
       job,
     }),
-    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nAll tests pass.",
+    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nSummary:\nTests passed.\n\nFinal answer:\nAll tests pass.",
   );
 });
 
@@ -66,6 +67,7 @@ test("buildExternalJob records regular Codex completions for a Telegram chat", (
   assert.equal(job.projectPath, "C:/work/telegram");
   assert.equal(job.threadId, "thread-1");
   assert.equal(job.finalMessage, "All tests pass.");
+  assert.equal(job.summary, "All tests pass.");
   assert.equal(job.status, "completed");
   assert.equal(job.updatedAt, "2026-05-22T00:00:00.000Z");
 });

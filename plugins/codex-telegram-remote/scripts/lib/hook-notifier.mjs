@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { summarizeJobResult } from "./job-summary.mjs";
+
 export function shouldSuppressHookNotification({ env = process.env } = {}) {
   return Boolean(env.CODEX_TELEGRAM_REMOTE_JOB_ID);
 }
@@ -17,8 +19,15 @@ export function buildStopNotification({ payload = {}, finalMessage = "", job = n
     lines.push(`Project: ${payload.cwd}`);
   }
   const message = String(finalMessage ?? "").trim();
-  if (message) {
-    lines.push("", message);
+  const summary = String(job?.summary ?? "").trim() || summarizeJobResult({
+    explicitSummary: readPayloadSummary(payload),
+    finalMessage,
+  });
+  if (summary) {
+    lines.push("", "Summary:", summary);
+  }
+  if (message && message !== summary) {
+    lines.push("", "Final answer:", message);
   }
   return lines.join("\n");
 }
@@ -33,6 +42,10 @@ export function buildExternalJob({
   const project = resolvePayloadProject(payload, projects);
   const timestamp = now.toISOString();
   const message = String(finalMessage ?? "").trim();
+  const summary = summarizeJobResult({
+    explicitSummary: readPayloadSummary(payload),
+    finalMessage: message,
+  });
 
   return {
     jobId: createHookJobId({ payload, chatId }),
@@ -46,6 +59,7 @@ export function buildExternalJob({
     threadId: payload.thread_id ?? payload.threadId ?? payload.session_id ?? payload.sessionId ?? null,
     transcriptPath: payload.transcript_path ?? payload.transcriptPath ?? "",
     finalMessage: message,
+    summary,
     stdoutTail: message,
     stderrTail: "",
     createdAt: timestamp,
@@ -130,4 +144,20 @@ function makeHookProjectId(projectPath) {
 
 function normalizePathForCompare(value) {
   return String(value ?? "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+}
+
+function readPayloadSummary(payload = {}) {
+  if (typeof payload.summary === "string") {
+    return payload.summary;
+  }
+  if (typeof payload.summary?.text === "string") {
+    return payload.summary.text;
+  }
+  if (typeof payload.task_summary === "string") {
+    return payload.task_summary;
+  }
+  if (typeof payload.taskSummary === "string") {
+    return payload.taskSummary;
+  }
+  return "";
 }

@@ -17,6 +17,7 @@ Use this skill when the user asks about installing or operating the Telegram rem
 - Codex inherits the user's existing Codex config, sandbox, approvals, and model settings.
 - The runner can keep working while the PC is locked if the user is logged in, the machine is awake, and networking is available.
 - Regular Codex completion notifications use the bundled `Stop` hook. Plugin hooks require `[features].plugin_hooks = true` and hook trust review. Hook notifications are recorded as completed jobs so they can be selected from Telegram.
+- Completion messages include a task summary. If `sendFullFinalAnswer` is enabled, the full final answer is sent after the summary.
 
 ## Useful files
 

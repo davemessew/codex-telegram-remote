@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { summarizeJobResult } from "./job-summary.mjs";
+
 const MAX_CAPTURED_OUTPUT_CHARS = 200_000;
 
 export function buildCodexInvocation({ codexBin = "codex", cwd, prompt, sessionId }) {
@@ -22,6 +24,7 @@ export function parseCodexJsonl(output) {
   const result = {
     threadId: null,
     finalMessage: "",
+    summary: "",
     usage: null,
     errors: [],
   };
@@ -47,6 +50,7 @@ export function parseCodexJsonl(output) {
     }
     if (event.type === "turn.completed") {
       result.usage = event.usage ?? null;
+      result.summary = result.summary || readEventSummary(event);
     }
     if (event.type === "error") {
       result.errors.push(event.message ?? JSON.stringify(event));
@@ -191,10 +195,15 @@ export class CodexJobRunner {
           ? looksLikeUserInputRequest(parsed.finalMessage) ? "awaiting_reply" : "completed"
           : "failed";
         const finalMessage = parsed.finalMessage || stderr.trim() || `Codex exited with code ${exitCode}.`;
+        const summary = summarizeJobResult({
+          explicitSummary: parsed.summary,
+          finalMessage,
+        });
         const updated = this.state.updateJob(job.jobId, {
           status,
           threadId: parsed.threadId ?? job.threadId,
           finalMessage,
+          summary,
           usage: parsed.usage,
           stdoutTail: tail(stdout),
           stderrTail: tail(stderr),
@@ -274,4 +283,17 @@ function tail(value, maxLength = 4000) {
 function appendBounded(current, addition, maxLength = MAX_CAPTURED_OUTPUT_CHARS) {
   const next = current + addition;
   return next.length <= maxLength ? next : next.slice(-maxLength);
+}
+
+function readEventSummary(event) {
+  if (typeof event.summary === "string") {
+    return event.summary;
+  }
+  if (typeof event.summary?.text === "string") {
+    return event.summary.text;
+  }
+  if (typeof event.turn?.summary === "string") {
+    return event.turn.summary;
+  }
+  return "";
 }

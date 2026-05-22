@@ -4,6 +4,7 @@ import {
   formatProjectPickerText,
   parseProjectCallback,
 } from "./project-picker.mjs";
+import { summarizeJobResult } from "./job-summary.mjs";
 import {
   chunkTelegramText,
   isAllowedChat,
@@ -295,7 +296,7 @@ export function createBotController({
 
     const text = config.sendFullFinalAnswer === false
       ? formatJobStatus(job)
-      : job.finalMessage || formatJobStatus(job);
+      : formatJobCompletion(job);
     for (const chunk of chunkTelegramText(text, config.telegramChunkSize)) {
       const sent = await telegram.sendMessage(chatId, chunk);
       if (sent?.message_id && job.status === "awaiting_reply") {
@@ -335,21 +336,54 @@ export function createBotController({
 }
 
 function formatJobStatus(job) {
-  return [
+  const lines = [
     `Job: ${job.jobId}`,
     `Status: ${job.status}`,
     job.projectName ? `Project: ${job.projectName}` : "",
     job.threadId ? `Thread: ${job.threadId}` : "",
-  ].filter(Boolean).join("\n");
+  ].filter(Boolean);
+  const summary = readJobSummary(job);
+  if (summary && isTerminalJob(job)) {
+    lines.push("", "Summary:", summary);
+  }
+  return lines.join("\n");
+}
+
+function formatJobCompletion(job) {
+  if (job.status === "awaiting_reply") {
+    return job.finalMessage || formatJobStatus(job);
+  }
+
+  const finalMessage = String(job.finalMessage ?? "").trim();
+  const summary = readJobSummary(job);
+  const lines = [
+    formatCompletionTitle(job),
+    `Job: ${job.jobId}`,
+    job.projectName ? `Project: ${job.projectName}` : "",
+  ].filter(Boolean);
+
+  if (summary) {
+    lines.push("", "Summary:", summary);
+  }
+  if (finalMessage && finalMessage !== summary) {
+    lines.push("", "Final answer:", finalMessage);
+  }
+
+  return lines.join("\n");
 }
 
 function formatSelectedJob(job) {
-  return [
+  const lines = [
     `Selected job: ${job.jobId}`,
     `Status: ${job.status}`,
     job.projectName ? `Project: ${job.projectName}` : "",
     job.source === "hook" ? "Source: regular completion hook" : "",
-  ].filter(Boolean).join("\n");
+  ].filter(Boolean);
+  const summary = readJobSummary(job);
+  if (summary && isTerminalJob(job)) {
+    lines.push("", "Summary:", summary);
+  }
+  return lines.join("\n");
 }
 
 function formatJobListLine(job, selectedJobId) {
@@ -388,4 +422,25 @@ function normalizePathForCompare(value) {
 function truncateButtonText(value, limit = 56) {
   const text = String(value ?? "");
   return text.length <= limit ? text : `${text.slice(0, limit - 1)}...`;
+}
+
+function readJobSummary(job) {
+  return String(job.summary ?? "").trim() || summarizeJobResult({ finalMessage: job.finalMessage });
+}
+
+function isTerminalJob(job) {
+  return ["completed", "failed", "cancelled"].includes(job.status);
+}
+
+function formatCompletionTitle(job) {
+  if (job.status === "completed") {
+    return "Job completed";
+  }
+  if (job.status === "failed") {
+    return "Job failed";
+  }
+  if (job.status === "cancelled") {
+    return "Job cancelled";
+  }
+  return `Job ${job.status}`;
 }

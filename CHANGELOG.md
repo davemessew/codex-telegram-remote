@@ -6,6 +6,7 @@
 - Made `/status` and `/tail` use the selected job before falling back to the current project.
 - Recorded regular app/CLI completion hook notifications as selectable jobs.
 - Reloaded file-backed state before reads so a running Telegram runner can see jobs written by hook processes.
+- Included task summaries in Telegram completion messages and completed-job status output.
 
 ## 0.1.0
 

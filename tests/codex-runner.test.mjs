@@ -40,12 +40,13 @@ test("parseCodexJsonl captures thread id, final message, and usage", () => {
   const result = parseCodexJsonl(`
 {"type":"thread.started","thread_id":"thread-1"}
 {"type":"item.completed","item":{"type":"agent_message","text":"Done"}}
-{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2}}
+{"type":"turn.completed","summary":"Changed tests.","usage":{"input_tokens":1,"output_tokens":2}}
 `);
 
   assert.deepEqual(result, {
     threadId: "thread-1",
     finalMessage: "Done",
+    summary: "Changed tests.",
     usage: { input_tokens: 1, output_tokens: 2 },
     errors: [],
   });

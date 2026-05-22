@@ -51,6 +51,7 @@ function createHarness() {
         projectName: project.name,
         projectPath: project.path,
         status,
+        summary: status === "awaiting_reply" ? "" : "finished summary",
         updatedAt: "2026-05-22T00:00:00.000Z",
       });
       calls.push({ method: "startJob", chatId, project, prompt });
@@ -61,6 +62,7 @@ function createHarness() {
         projectName: project.name,
         projectPath: project.path,
         finalMessage: status === "awaiting_reply" ? "Which option?" : "finished",
+        summary: status === "awaiting_reply" ? "" : "finished summary",
         status,
       };
     },
@@ -73,6 +75,7 @@ function createHarness() {
         jobId,
         threadId: "thread-1",
         finalMessage: "continued",
+        summary: "continued summary",
         status: "completed",
       };
     },
@@ -170,7 +173,9 @@ test("normal message with a selected project starts a Codex job", async () => {
   assert.equal(calls[2].method, "startJob");
   assert.equal(calls[2].project.id, "telegram");
   assert.equal(calls[2].prompt, "run tests");
-  assert.equal(calls.at(-1).text, "finished");
+  assert.match(calls.at(-1).text, /^Job completed\nJob: job-1\nProject: telegram/);
+  assert.match(calls.at(-1).text, /Summary:\nfinished summary/);
+  assert.match(calls.at(-1).text, /Final answer:\nfinished/);
 });
 
 test("unauthorized chats are rejected before any Codex work starts", async () => {
@@ -251,7 +256,8 @@ test("sendFullFinalAnswer false sends status instead of full output", async () =
   });
 
   assert.match(calls.at(-1).text, /^Job: job-1\nStatus: completed/);
-  assert.equal(calls.at(-1).text.includes("finished"), false);
+  assert.match(calls.at(-1).text, /Summary:\nfinished summary/);
+  assert.equal(calls.at(-1).text.includes("Final answer:"), false);
 });
 
 test("status without job id uses the current project's latest job", async () => {

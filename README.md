@@ -67,7 +67,7 @@ Bot: Job completed
 | Normal-message prompts | After a project is selected, non-command messages become Codex prompts for that project. |
 | Follow-up replies | If Codex asks a question, reply in Telegram and the runner resumes the same Codex thread. |
 | Job picker | `/jobs` lists recent jobs with tappable buttons. Selecting one makes `/status` and `/tail` use that job by default. |
-| Completion messages | Telegram-launched jobs send final answers automatically. Regular Codex tasks can notify through the optional `Stop` hook and become selectable jobs. |
+| Completion messages | Telegram-launched jobs send a completion summary automatically, with the full final answer when enabled. Regular Codex tasks can notify through the optional `Stop` hook and become selectable jobs. |
 | Locked-PC support | Windows setup registers a hidden Task Scheduler job that continues while the screen is locked. |
 | Conservative access | Only `allowedChatIds` can run jobs. Unknown chats are ignored by default. |
 
@@ -185,7 +185,7 @@ Common config:
 | `defaultProject` | Empty | Alias or path selected by default. |
 | `codexBin` | Auto-detected | Path to the Codex binary. |
 | `maxConcurrentJobs` | `1` | Maximum simultaneous Telegram-launched jobs. |
-| `sendFullFinalAnswer` | `true` | Send final answer text instead of only job status. |
+| `sendFullFinalAnswer` | `true` | Include the full final answer after the completion summary. When `false`, completion messages still include job status and summary. |
 | `replyToUnauthorized` | `false` | Reply to unknown chats. Keep off except during setup. |
 
 Environment overrides:
@@ -221,7 +221,7 @@ Project discovery uses:
 
 The runner stores selected projects, selected jobs, and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
 
-Regular app/CLI tasks are recorded as completed jobs when the optional `Stop` hook fires. The completion message includes a `Select job` button, and the same job appears in `/jobs`.
+Regular app/CLI tasks are recorded as completed jobs when the optional `Stop` hook fires. The completion message includes a summary and a `Select job` button, and the same job appears in `/jobs`.
 
 ## Security Model
 
