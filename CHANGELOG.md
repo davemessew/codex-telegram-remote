@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added tappable `/jobs` selection for recent jobs.
+- Made `/status` and `/tail` use the selected job before falling back to the current project.
+- Recorded regular app/CLI completion hook notifications as selectable jobs.
+- Reloaded file-backed state before reads so a running Telegram runner can see jobs written by hook processes.
+
 ## 0.1.0
 
 - Initial plugin package.

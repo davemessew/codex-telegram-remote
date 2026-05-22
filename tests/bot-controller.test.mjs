@@ -20,6 +20,7 @@ const projects = [
 function createHarness() {
   const calls = [];
   const jobs = new Map();
+  const state = createMemoryStateStore();
   const config = {
     allowedChatIds: ["123", "456"],
     telegramChunkSize: 3900,
@@ -90,11 +91,12 @@ function createHarness() {
     controller: createBotController({
       config,
       projects,
-      state: createMemoryStateStore(),
+      state,
       telegram,
       codex,
     }),
     jobs,
+    state,
   };
 }
 
@@ -289,6 +291,55 @@ test("status without job id uses the current project's latest job", async () => 
   });
 
   assert.match(calls.at(-1).text, /^Job: job-telegram\nStatus: running/);
+});
+
+test("/jobs exposes tappable jobs and selected job status works without a job id", async () => {
+  const { calls, controller, jobs, state } = createHarness();
+  jobs.set("hook-regular", {
+    jobId: "hook-regular",
+    chatId: "123",
+    projectId: "telegram",
+    projectName: "telegram",
+    projectPath: "C:/work/telegram",
+    finalMessage: "regular completion",
+    source: "hook",
+    status: "completed",
+    updatedAt: "2026-05-22T00:03:00.000Z",
+  });
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 1,
+      chat: { id: 123 },
+      text: "/jobs",
+    },
+  });
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-job",
+      data: "job:hook-regular",
+      message: { message_id: 10, chat: { id: 123 } },
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/status",
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 3,
+      chat: { id: 123 },
+      text: "/tail",
+    },
+  });
+
+  assert.equal(calls[0].options.reply_markup.inline_keyboard[0][0].callback_data, "job:hook-regular");
+  assert.equal(state.getSelectedJob("123"), "hook-regular");
+  assert.match(calls.at(-2).text, /^Job: hook-regular\nStatus: completed/);
+  assert.equal(calls.at(-1).text, "regular completion");
 });
 
 test("tail without job id uses the current project's latest job", async () => {

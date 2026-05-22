@@ -1,10 +1,16 @@
 #!/usr/bin/env node
-import { loadConfig } from "./lib/config.mjs";
 import {
+  loadCodexProjectPaths,
+  loadConfig,
+  resolveConfiguredProjects,
+} from "./lib/config.mjs";
+import {
+  buildExternalJob,
   buildStopNotification,
   readFinalMessageFromTranscript,
   shouldSuppressHookNotification,
 } from "./lib/hook-notifier.mjs";
+import { createFileStateStore } from "./lib/state-store.mjs";
 import { TelegramClient, chunkTelegramText } from "./lib/telegram.mjs";
 
 async function main() {
@@ -23,12 +29,27 @@ async function main() {
   const finalMessage = readFinalMessageFromTranscript(payload.transcript_path, {
     allowedRoots: [config.codexHome],
   });
-  const notification = buildStopNotification({ payload, finalMessage });
+  const projects = resolveConfiguredProjects({
+    config,
+    codexProjectPaths: loadCodexProjectPaths(config.codexHome),
+  });
+  const state = createOptionalStateStore(config.statePath);
   const telegram = new TelegramClient({ botToken: config.botToken });
 
   for (const chatId of config.completionChatIds) {
-    for (const chunk of chunkTelegramText(notification, config.telegramChunkSize)) {
-      await telegram.sendMessage(chatId, chunk);
+    const job = buildExternalJob({
+      payload,
+      finalMessage,
+      chatId,
+      projects,
+    });
+    state?.addJob(job);
+    const notification = buildStopNotification({ payload, finalMessage, job });
+    const chunks = chunkTelegramText(notification, config.telegramChunkSize);
+    for (const [index, chunk] of chunks.entries()) {
+      await telegram.sendMessage(chatId, chunk, index === 0 ? {
+        reply_markup: buildSingleJobKeyboard(job),
+      } : undefined);
     }
   }
 
@@ -59,6 +80,28 @@ function loadOptionalConfig() {
       codexHome: "",
     };
   }
+}
+
+function createOptionalStateStore(statePath) {
+  try {
+    return createFileStateStore(statePath);
+  } catch (error) {
+    console.error(`Could not open Codex Telegram Remote state file: ${error.message}`);
+    return null;
+  }
+}
+
+function buildSingleJobKeyboard(job) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "Select job",
+          callback_data: `job:${job.jobId}`,
+        },
+      ],
+    ],
+  };
 }
 
 main().catch((error) => {

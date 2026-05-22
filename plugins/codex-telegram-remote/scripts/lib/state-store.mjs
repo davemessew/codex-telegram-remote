@@ -6,14 +6,19 @@ export function createMemoryStateStore(initialState) {
 }
 
 export function createFileStateStore(statePath) {
-  let initialState;
-  if (statePath && fs.existsSync(statePath)) {
-    initialState = JSON.parse(fs.readFileSync(statePath, "utf8"));
-  }
+  const initialState = readStateFile(statePath);
   const store = new StateStore(initialState);
+  store.beforeRead = () => {
+    const latestState = readStateFile(statePath);
+    if (latestState) {
+      store.replaceState(mergeStateSnapshots(latestState, store.snapshot()));
+    }
+  };
   store.onChange = () => {
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
-    writePrivateJson(statePath, store.snapshot());
+    const nextState = mergeStateSnapshots(readStateFile(statePath), store.snapshot());
+    store.replaceState(nextState);
+    writePrivateJson(statePath, nextState);
   };
   return store;
 }
@@ -36,15 +41,19 @@ export function writePrivateJson(filePath, payload) {
 
 class StateStore {
   constructor(initialState = {}) {
-    this.state = {
-      lastUpdateId: null,
-      selectedProjects: {},
-      waitingJobs: {},
-      jobs: {},
-      botMessages: {},
-      ...initialState,
-    };
+    this.state = normalizeStateSnapshot(initialState);
     this.onChange = null;
+    this.beforeRead = null;
+  }
+
+  replaceState(nextState) {
+    this.state = normalizeStateSnapshot(nextState);
+  }
+
+  refresh() {
+    if (this.beforeRead) {
+      this.beforeRead();
+    }
   }
 
   snapshot() {
@@ -52,6 +61,7 @@ class StateStore {
   }
 
   getSelectedProject(chatId) {
+    this.refresh();
     return this.state.selectedProjects[String(chatId)] ?? null;
   }
 
@@ -60,7 +70,23 @@ class StateStore {
     this.changed();
   }
 
+  getSelectedJob(chatId) {
+    this.refresh();
+    return this.state.selectedJobs[String(chatId)] ?? null;
+  }
+
+  setSelectedJob(chatId, jobId) {
+    this.state.selectedJobs[String(chatId)] = jobId;
+    this.changed();
+  }
+
+  clearSelectedJob(chatId) {
+    delete this.state.selectedJobs[String(chatId)];
+    this.changed();
+  }
+
   getWaitingJob(chatId) {
+    this.refresh();
     return this.state.waitingJobs[String(chatId)] ?? null;
   }
 
@@ -91,10 +117,12 @@ class StateStore {
   }
 
   getJob(jobId) {
+    this.refresh();
     return this.state.jobs[jobId] ?? null;
   }
 
   listJobs(chatId) {
+    this.refresh();
     return Object.values(this.state.jobs)
       .filter((job) => !chatId || job.chatId === String(chatId))
       .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")));
@@ -106,10 +134,12 @@ class StateStore {
   }
 
   getJobForBotMessage(chatId, messageId) {
+    this.refresh();
     return this.state.botMessages[botMessageKey(chatId, messageId)] ?? null;
   }
 
   getLastUpdateId() {
+    this.refresh();
     return this.state.lastUpdateId ?? null;
   }
 
@@ -125,6 +155,57 @@ class StateStore {
   }
 }
 
+function normalizeStateSnapshot(initialState = {}) {
+  const source = initialState && typeof initialState === "object" ? initialState : {};
+  return {
+    lastUpdateId: null,
+    selectedProjects: {},
+    selectedJobs: {},
+    waitingJobs: {},
+    jobs: {},
+    botMessages: {},
+    ...source,
+    selectedProjects: source.selectedProjects ?? {},
+    selectedJobs: source.selectedJobs ?? {},
+    waitingJobs: source.waitingJobs ?? {},
+    jobs: source.jobs ?? {},
+    botMessages: source.botMessages ?? {},
+  };
+}
+
 function botMessageKey(chatId, messageId) {
   return `${String(chatId)}:${String(messageId)}`;
+}
+
+function readStateFile(statePath) {
+  if (!statePath || !fs.existsSync(statePath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(statePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function mergeStateSnapshots(latestState = {}, currentState = {}) {
+  const latest = normalizeStateSnapshot(latestState ?? {});
+  const current = normalizeStateSnapshot(currentState ?? {});
+  return {
+    ...latest,
+    ...current,
+    lastUpdateId: maxLastUpdateId(latest.lastUpdateId, current.lastUpdateId),
+    selectedProjects: current.selectedProjects,
+    selectedJobs: current.selectedJobs,
+    waitingJobs: current.waitingJobs,
+    jobs: { ...latest.jobs, ...current.jobs },
+    botMessages: { ...latest.botMessages, ...current.botMessages },
+  };
+}
+
+function maxLastUpdateId(left, right) {
+  if (Number.isInteger(left) && Number.isInteger(right)) {
+    return Math.max(left, right);
+  }
+  return right ?? left ?? null;
 }

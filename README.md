@@ -66,7 +66,8 @@ Bot: Job completed
 | Tappable project picker | `/select` opens an inline Telegram keyboard with project pagination and the current project highlighted. |
 | Normal-message prompts | After a project is selected, non-command messages become Codex prompts for that project. |
 | Follow-up replies | If Codex asks a question, reply in Telegram and the runner resumes the same Codex thread. |
-| Completion messages | Telegram-launched jobs send final answers automatically. Regular Codex tasks can notify through the optional `Stop` hook. |
+| Job picker | `/jobs` lists recent jobs with tappable buttons. Selecting one makes `/status` and `/tail` use that job by default. |
+| Completion messages | Telegram-launched jobs send final answers automatically. Regular Codex tasks can notify through the optional `Stop` hook and become selectable jobs. |
 | Locked-PC support | Windows setup registers a hidden Task Scheduler job that continues while the screen is locked. |
 | Conservative access | Only `allowedChatIds` can run jobs. Unknown chats are ignored by default. |
 
@@ -75,9 +76,9 @@ Bot: Job completed
 ```text
 /select          choose the active project
 /current         show the selected project
-/jobs            list recent jobs
-/status [jobId]  show current project status, or a specific job
-/tail [jobId]    show current project output, or a specific job
+/jobs            list and select recent jobs
+/status [jobId]  show selected job, current project status, or a specific job
+/tail [jobId]    show selected job, current project output, or a specific job
 /cancel <jobId>  cancel a running job
 /help            show command help
 ```
@@ -209,7 +210,8 @@ flowchart LR
   R -->|"codex exec --json -C <project>"| C["Codex CLI"]
   C -->|"JSONL events"| R
   R -->|"final answer chunks"| T
-  H["Optional Stop hook"] -->|"regular task complete"| T
+  H["Optional Stop hook"] -->|"regular task complete"| S
+  H -->|"completion notification"| T
 ```
 
 Project discovery uses:
@@ -217,7 +219,9 @@ Project discovery uses:
 - `[projects]` from `$CODEX_HOME/config.toml`
 - `projectAliases` from this plugin's config
 
-The runner stores selected projects and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
+The runner stores selected projects, selected jobs, and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
+
+Regular app/CLI tasks are recorded as completed jobs when the optional `Stop` hook fires. The completion message includes a `Select job` button, and the same job appears in `/jobs`.
 
 ## Security Model
 

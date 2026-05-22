@@ -109,6 +109,17 @@ Regular Codex task notifications require all of:
 
 Telegram-launched jobs do not depend on hooks for final-answer delivery.
 
+## Regular Jobs Do Not Show In `/jobs`
+
+Jobs started in the Codex app or CLI only become visible to Telegram after the optional `Stop` hook runs. If the completion notification arrives, the job should include a `Select job` button and appear in `/jobs` for that same Telegram chat.
+
+Check:
+
+- `completionChatIds` includes the chat where you expect to manage the job.
+- That chat is also in `allowedChatIds` if you want to tap job buttons or run `/status` and `/tail`.
+- The hook can write to the configured `statePath`.
+- The task was not launched from Telegram; Telegram-launched jobs are tracked directly by the runner.
+
 ## Codex Asks for Approval While Remote
 
 The runner inherits the user's Codex config. If Codex asks for interactive approval, the remote job can stall or fail depending on Codex mode. Use a Codex configuration that matches your risk tolerance for unattended use.

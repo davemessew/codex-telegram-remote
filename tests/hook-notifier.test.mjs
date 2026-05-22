@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+  buildExternalJob,
   buildStopNotification,
   readFinalMessageFromTranscript,
   shouldSuppressHookNotification,
@@ -20,6 +21,11 @@ test("shouldSuppressHookNotification skips Telegram-launched Codex jobs", () => 
 });
 
 test("buildStopNotification summarizes regular Codex task completion", () => {
+  const job = {
+    jobId: "hook-abc123",
+    projectName: "Repo",
+  };
+
   assert.equal(
     buildStopNotification({
       payload: {
@@ -27,9 +33,41 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
         transcript_path: "C:/Users/example/.codex/sessions/session.jsonl",
       },
       finalMessage: "All tests pass.",
+      job,
     }),
-    "Codex task completed\nProject: C:/Repo\n\nAll tests pass.",
+    "Codex task completed\nJob: hook-abc123\nProject: Repo\n\nAll tests pass.",
   );
+});
+
+test("buildExternalJob records regular Codex completions for a Telegram chat", () => {
+  const job = buildExternalJob({
+    payload: {
+      cwd: "C:\\work\\telegram",
+      transcript_path: "C:/Users/example/.codex/sessions/session.jsonl",
+      thread_id: "thread-1",
+    },
+    finalMessage: "All tests pass.",
+    chatId: "123",
+    projects: [
+      {
+        id: "telegram",
+        name: "telegram",
+        path: "C:/work/telegram",
+      },
+    ],
+    now: new Date("2026-05-22T00:00:00.000Z"),
+  });
+
+  assert.match(job.jobId, /^hook-[a-z0-9_-]{10}$/);
+  assert.equal(job.chatId, "123");
+  assert.equal(job.source, "hook");
+  assert.equal(job.projectId, "telegram");
+  assert.equal(job.projectName, "telegram");
+  assert.equal(job.projectPath, "C:/work/telegram");
+  assert.equal(job.threadId, "thread-1");
+  assert.equal(job.finalMessage, "All tests pass.");
+  assert.equal(job.status, "completed");
+  assert.equal(job.updatedAt, "2026-05-22T00:00:00.000Z");
 });
 
 test("readFinalMessageFromTranscript refuses paths outside allowed roots", () => {

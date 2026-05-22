@@ -11,11 +11,12 @@ Use this skill when the user asks about installing or operating the Telegram rem
 
 - The runner is local and uses Telegram long polling, so no public webhook URL is required.
 - `/select` opens a tappable project picker. After a project is selected, normal Telegram messages become Codex prompts for that project.
+- `/jobs` opens a tappable recent-job picker. Selecting a job makes `/status` and `/tail` use that job by default.
 - Only `allowedChatIds` can run Codex.
 - Unauthorized chats are ignored unless `replyToUnauthorized` is explicitly enabled for setup debugging.
 - Codex inherits the user's existing Codex config, sandbox, approvals, and model settings.
 - The runner can keep working while the PC is locked if the user is logged in, the machine is awake, and networking is available.
-- Regular Codex completion notifications use the bundled `Stop` hook. Plugin hooks require `[features].plugin_hooks = true` and hook trust review.
+- Regular Codex completion notifications use the bundled `Stop` hook. Plugin hooks require `[features].plugin_hooks = true` and hook trust review. Hook notifications are recorded as completed jobs so they can be selected from Telegram.
 
 ## Useful files
 
