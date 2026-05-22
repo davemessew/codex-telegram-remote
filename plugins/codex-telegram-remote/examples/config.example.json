@@ -7,9 +7,11 @@
     "frontend": "C:/code/frontend"
   },
   "codexBin": "",
+  "executionBackend": "appServer",
   "maxConcurrentJobs": 1,
   "sendFullFinalAnswer": true,
   "replyToUnauthorized": false,
   "telegramChunkSize": 3900,
-  "projectPageSize": 8
+  "projectPageSize": 8,
+  "threadPageSize": 8
 }

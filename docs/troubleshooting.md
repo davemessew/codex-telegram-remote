@@ -77,6 +77,18 @@ Fixes:
 - Add friendly aliases to `~/.codex-telegram-remote/config.json`.
 - Set `CODEX_HOME` if your Codex config lives somewhere else.
 
+## `/thread` Shows No GUI Threads
+
+The default `appServer` backend sends Telegram prompts into existing Codex GUI conversations. `/thread` only shows conversations whose current working directory matches the selected project.
+
+Fixes:
+
+- Open the project in the Codex desktop app once.
+- Send at least one message in that desktop conversation so it has a recent reply.
+- Confirm `/current` shows the project you expect.
+- Add or correct a `projectAliases` entry if the displayed project path is different from the desktop conversation path.
+- Set `"executionBackend": "cli"` in config if you want Telegram to start standalone `codex exec` jobs instead of reusing GUI threads.
+
 ## `codex.exe` Access Denied on Windows
 
 The Windows Store app can expose a `codex.exe` shim that PowerShell cannot execute directly. The setup script searches the Codex app-local binary first:

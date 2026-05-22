@@ -88,10 +88,12 @@ $config = [ordered]@{
   defaultProject = $DefaultProject
   projectAliases = $aliases
   codexBin = $codexBin
+  executionBackend = "appServer"
   maxConcurrentJobs = 1
   sendFullFinalAnswer = $true
   telegramChunkSize = 3900
   projectPageSize = 8
+  threadPageSize = 8
 }
 
 $config | ConvertTo-Json -Depth 10 | Set-Content -Path $configPath -Encoding UTF8

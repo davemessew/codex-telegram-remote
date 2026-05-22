@@ -34,6 +34,8 @@ The script creates:
 
 The setup script uses `umask 077`, sets the config directory to `700`, and sets the config file to `600`.
 
+The generated config uses `executionBackend: "appServer"` by default. Telegram prompts go into existing Codex GUI conversations for the selected project. Use `/thread` in Telegram to switch conversations, or set `executionBackend` to `"cli"` if you need standalone `codex exec` jobs.
+
 ## Locked Mac Behavior
 
 The LaunchAgent can continue while the Mac is locked if the user session remains active, the Mac is awake, and networking is available. It will not run while the Mac is shut down, asleep, or logged out.

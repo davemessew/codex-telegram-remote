@@ -4,11 +4,12 @@
 
 ### Run local Codex jobs from Telegram.
 
-Pick a project with `/select`, send a normal message, and get the final answer back when Codex finishes.
+Pick a project with `/select`, use the latest GUI conversation automatically, switch conversations with `/thread`, then type a normal Telegram message.
 
 <p>
   🚀 Run Codex from anywhere with Telegram<br>
   🧭 Tap `/select`, choose a project, then type normally<br>
+  🧵 Default to the latest GUI thread, or switch with `/thread`<br>
   🔔 Get final answers and completion pings automatically<br>
   🔒 Keep execution local, allowlisted, and under your Codex settings
 </p>
@@ -23,11 +24,13 @@ Pick a project with `/select`, send a normal message, and get the final answer b
 <p>
   <a href="#quick-start"><strong>Quick Start</strong></a>
   |
-  <a href="#demo"><strong>Demo</strong></a>
+  <a href="#commands"><strong>Commands</strong></a>
+  |
+  <a href="#configuration"><strong>Config</strong></a>
   |
   <a href="#security-model"><strong>Security</strong></a>
   |
-  <a href="docs/windows.md"><strong>Windows Setup</strong></a>
+  <a href="docs/windows.md"><strong>Windows</strong></a>
   |
   <a href="docs/troubleshooting.md"><strong>Troubleshooting</strong></a>
 </p>
@@ -38,9 +41,9 @@ Pick a project with `/select`, send a normal message, and get the final answer b
 
 Codex Telegram Remote is a local runner plus a Codex plugin. It talks to Telegram through long polling, so there are no public webhooks, no exposed ports, and no cloud worker between Telegram and your machine.
 
-| 🚀 Select | ✍️ Prompt | 🔁 Continue | 🔔 Notify |
+| 🚀 Select | 🧵 Thread | ✍️ Prompt | 🔔 Notify |
 | --- | --- | --- | --- |
-| Tap `/select` to choose a project. | Send normal Telegram messages as Codex prompts. | Reply when Codex asks a question. | Receive final answers and completion alerts. |
+| Tap `/select` to choose a project. | Use the newest GUI thread or tap `/thread`. | Send normal messages as prompts. | Receive final answers and completion alerts. |
 
 ## Demo
 
@@ -53,9 +56,23 @@ Bot: Select a project. Current project: frontend.
 [ api-service       ]
 [ docs-site         ]
 
+You: /thread
+
+Bot: Select a thread for frontend.
+
+[ Current: Build dashboard ]
+[ Fix auth flow          ]
+
 You: add tests for the project picker
 
 Bot: Job completed
+Job: job-ab12cd
+Project: frontend
+
+Summary:
+Added focused project-picker tests.
+
+Details:
 <full Codex final answer>
 ```
 
@@ -64,8 +81,9 @@ Bot: Job completed
 | Feature | Details |
 | --- | --- |
 | Tappable project picker | `/select` opens an inline Telegram keyboard with project pagination and the current project highlighted. |
-| Normal-message prompts | After a project is selected, non-command messages become Codex prompts for that project. |
-| Follow-up replies | If Codex asks a question, reply in Telegram and the runner resumes the same Codex thread. |
+| Tappable thread picker | `/thread` lists existing GUI conversations for the selected project. If you do nothing, the runner uses the most recently updated thread. |
+| Normal-message prompts | After a project is selected, non-command messages become Codex prompts in the selected or latest GUI thread. |
+| Follow-up replies | If Codex asks a question, reply in Telegram and the runner continues the same thread. |
 | Job picker | `/jobs` lists recent jobs with tappable buttons. Selecting one makes `/status` and `/tail` use that job by default. |
 | Completion messages | Telegram-launched jobs send completion messages automatically. Desktop completions are watched from local transcripts, and app/CLI completions can also notify through the optional `Stop` hook. |
 | Locked-PC support | Windows setup registers a hidden Task Scheduler job that continues while the screen is locked. |
@@ -75,7 +93,8 @@ Bot: Job completed
 
 ```text
 /select          choose the active project
-/current         show the selected project
+/thread          choose the active GUI thread for the selected project
+/current         show the selected project and selected thread
 /jobs            list and select recent jobs
 /status [jobId]  show selected job, current project status, or a specific job
 /tail [jobId]    show selected job, current project output, or a specific job
@@ -130,7 +149,7 @@ Optional default project alias:
 
 ### 4. Use Telegram
 
-Send `/select`, tap a project, then send a normal message.
+Send `/select`, tap a project, optionally send `/thread` to pick a conversation, then send a normal message.
 
 Full Windows guide: [docs/windows.md](docs/windows.md)
 
@@ -166,12 +185,14 @@ Common config:
   },
   "codexBin": "",
   "codexHome": "C:/Users/you/.codex",
+  "executionBackend": "appServer",
   "maxConcurrentJobs": 1,
   "sendFullFinalAnswer": true,
   "replyToUnauthorized": false,
   "telegramChunkSize": 3900,
   "pollTimeoutSeconds": 50,
-  "projectPageSize": 8
+  "projectPageSize": 8,
+  "threadPageSize": 8
 }
 ```
 
@@ -184,7 +205,10 @@ Common config:
 | `projectAliases` | `{}` | Friendly project names shown in `/select`. |
 | `defaultProject` | Empty | Alias or path selected by default. |
 | `codexBin` | Auto-detected | Path to the Codex binary. |
+| `executionBackend` | `appServer` | `appServer` routes prompts into existing GUI threads. Set `cli` for the legacy `codex exec` backend. |
 | `maxConcurrentJobs` | `1` | Maximum simultaneous Telegram-launched jobs. |
+| `projectPageSize` | `8` | Number of projects shown per `/select` page. |
+| `threadPageSize` | `8` | Number of GUI threads shown by `/thread`. |
 | `sendFullFinalAnswer` | `true` | Include the exact final answer under `Details:`. When `false`, completion messages include status and any explicit summary. |
 | `replyToUnauthorized` | `false` | Reply to unknown chats. Keep off except during setup. |
 
@@ -196,6 +220,7 @@ CODEX_TELEGRAM_ALLOWED_CHAT_IDS
 CODEX_TELEGRAM_DEFAULT_PROJECT
 CODEX_TELEGRAM_CONFIG
 CODEX_TELEGRAM_CONFIG_DIR
+CODEX_TELEGRAM_EXECUTION_BACKEND
 CODEX_CLI_PATH
 CODEX_BIN
 CODEX_HOME
@@ -206,9 +231,11 @@ CODEX_HOME
 ```mermaid
 flowchart LR
   T["Telegram"] -->|"long polling"| R["Local runner"]
-  R -->|"allowlist + selected project"| S["State file"]
-  R -->|"codex exec --json -C <project>"| C["Codex CLI"]
+  R -->|"allowlist + selection state"| S["State file"]
+  R -->|"app-server stdio"| A["Codex GUI thread"]
+  R -. "executionBackend=cli" .-> C["Codex CLI"]
   C -->|"JSONL events"| R
+  A -->|"turn completed"| R
   R -->|"final answer chunks"| T
   M["Transcript monitor"] -->|"desktop task complete"| S
   M -->|"completion notification"| T
@@ -221,7 +248,9 @@ Project discovery uses:
 - `[projects]` from `$CODEX_HOME/config.toml`
 - `projectAliases` from this plugin's config
 
-The runner stores selected projects, selected jobs, and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
+The runner stores selected projects, selected GUI threads, selected jobs, and waiting jobs per Telegram chat. Reply-to mappings are chat-scoped, so one chat cannot resume or cancel another chat's job.
+
+By default, prompts use the selected project's most recently updated GUI thread. Use `/thread` to pin a different existing conversation for that Telegram chat and project. Set `executionBackend` to `cli` only if you prefer the older `codex exec` behavior.
 
 Regular desktop tasks are recorded as completed jobs when the runner sees a local transcript `task_complete` event. App/CLI tasks can also be recorded by the optional `Stop` hook. Completion messages include a `Details:` block with the exact final answer text, a `Select job` button, and the same job appears in `/jobs`.
 

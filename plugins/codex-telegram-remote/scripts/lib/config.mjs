@@ -50,6 +50,8 @@ export function normalizeConfig(raw = {}, options = {}) {
     replyToUnauthorized: raw.replyToUnauthorized === true,
     pollTimeoutSeconds: normalizePositiveInteger(raw.pollTimeoutSeconds, 50),
     projectPageSize: normalizePositiveInteger(raw.projectPageSize, 8),
+    threadPageSize: normalizePositiveInteger(raw.threadPageSize, 8),
+    executionBackend: normalizeExecutionBackend(env.CODEX_TELEGRAM_EXECUTION_BACKEND ?? raw.executionBackend),
   };
 }
 
@@ -156,6 +158,17 @@ function normalizeCompletionChatIds(completionChatIds, fallbackChatIds) {
 function normalizePositiveInteger(value, fallback) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function normalizeExecutionBackend(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "cli") {
+    return "cli";
+  }
+  if (normalized === "appserver" || normalized === "app-server" || normalized === "gui") {
+    return "appServer";
+  }
+  return "appServer";
 }
 
 function splitCsv(value) {

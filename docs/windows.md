@@ -52,6 +52,8 @@ The script:
 - Finds a working Codex binary when possible.
 - Registers and starts a hidden scheduled task named `CodexTelegramRemote`.
 
+The generated config uses `executionBackend: "appServer"` by default. Telegram prompts are routed into existing Codex GUI conversations for the selected project. Use `/thread` in Telegram to switch conversations, or set `executionBackend` to `"cli"` if you need the older `codex exec` behavior.
+
 ## Locked PC Behavior
 
 The scheduled task runs at user logon and keeps running after the screen is locked. This does not work if:
@@ -61,6 +63,8 @@ The scheduled task runs at user logon and keeps running after the screen is lock
 - Networking is unavailable.
 - Windows kills background networking due to power policy.
 - Codex requires an interactive approval prompt that cannot be answered remotely.
+
+The GUI-thread backend uses a local app-server process over stdio. It does not click the desktop UI, so it can keep running while the PC is locked as long as the user remains logged in.
 
 Recommended power settings for a dedicated remote workstation:
 

@@ -39,6 +39,19 @@ test("selected jobs are scoped by chat id", () => {
   assert.equal(state.getSelectedJob("456"), null);
 });
 
+test("selected threads are scoped by chat id and project id", () => {
+  const state = createMemoryStateStore();
+
+  state.setSelectedThread("123", "telegram", "thread-telegram");
+  state.setSelectedThread("123", "api-service", "thread-api");
+  state.setSelectedThread("456", "telegram", "thread-other-chat");
+  state.clearSelectedThread("456", "telegram");
+
+  assert.equal(state.getSelectedThread("123", "telegram"), "thread-telegram");
+  assert.equal(state.getSelectedThread("123", "api-service"), "thread-api");
+  assert.equal(state.getSelectedThread("456", "telegram"), null);
+});
+
 test("file state store writes private state JSON", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-state-"));
   const statePath = path.join(dir, "state.json");
@@ -95,4 +108,33 @@ test("file state store preserves explicit local clears while merging external jo
   assert.equal(snapshot.waitingJobs["123"], undefined);
   assert.equal(snapshot.selectedJobs["123"], undefined);
   assert.equal(snapshot.jobs["hook-1"].status, "completed");
+});
+
+test("file state store keeps newer job updates when another process writes stale state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-telegram-state-"));
+  const statePath = path.join(dir, "state.json");
+  const runnerState = createFileStateStore(statePath);
+  const workerState = createFileStateStore(statePath);
+
+  runnerState.addJob({
+    jobId: "job-1",
+    chatId: "123",
+    status: "running",
+    updatedAt: "2026-05-22T00:00:00.000Z",
+  });
+  workerState.updateJob("job-1", {
+    status: "completed",
+    finalMessage: "done",
+  });
+  runnerState.addJob({
+    jobId: "monitor-1",
+    chatId: "123",
+    status: "completed",
+    updatedAt: "2026-05-22T00:02:00.000Z",
+  });
+
+  const snapshot = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(snapshot.jobs["job-1"].status, "completed");
+  assert.equal(snapshot.jobs["job-1"].finalMessage, "done");
+  assert.equal(snapshot.jobs["monitor-1"].status, "completed");
 });

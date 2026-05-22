@@ -149,6 +149,7 @@ export function normalizeTelegramMessage(update) {
 export function telegramCommands() {
   return [
     { command: "select", description: "Choose the active Codex project" },
+    { command: "thread", description: "Choose the active Codex GUI thread" },
     { command: "current", description: "Show the active project" },
     { command: "jobs", description: "List and select recent Codex jobs" },
     { command: "status", description: "Show selected or current project job status" },

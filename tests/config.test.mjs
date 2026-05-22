@@ -40,6 +40,24 @@ test("normalizeConfig keeps chat allowlist strict and resolves defaults", () => 
   assert.equal(config.telegramChunkSize, 3900);
   assert.equal(config.sendFullFinalAnswer, true);
   assert.equal(config.replyToUnauthorized, false);
+  assert.equal(config.executionBackend, "appServer");
+});
+
+test("normalizeConfig accepts CLI execution backend override", () => {
+  const config = normalizeConfig(
+    {
+      botToken: "123:token",
+      allowedChatIds: ["1"],
+      executionBackend: "appServer",
+    },
+    {
+      env: {
+        CODEX_TELEGRAM_EXECUTION_BACKEND: "cli",
+      },
+    },
+  );
+
+  assert.equal(config.executionBackend, "cli");
 });
 
 test("normalizeConfig uses env chat IDs for completion notifications by default", () => {
@@ -88,7 +106,7 @@ test("parseCodexProjects reads quoted Windows project paths from Codex TOML", ()
 [projects."C:\\\\work\\\\SampleApp"]
 trust_level = "trusted"
 
-[projects."c:\\\\users\\\\david\\\\documents\\\\tron"]
+[projects."c:\\\\users\\\\example\\\\documents\\\\tron"]
 trust_level = "trusted"
 
 [projects.'c:\\work\\telegram']
@@ -97,7 +115,7 @@ trust_level = "trusted"
 
   assert.deepEqual(projects, [
     "C:\\work\\SampleApp",
-    "c:\\users\\david\\documents\\tron",
+    "c:\\users\\example\\documents\\tron",
     "c:\\work\\telegram",
   ]);
   assert.equal(projects[1].includes("\t"), false);
@@ -154,12 +172,12 @@ test("findProjectById accepts legacy ids from the old Windows TOML decoder", () 
       allowedChatIds: ["1"],
     }),
     codexProjectPaths: [
-      "c:\\users\\david\\documents\\tron",
+      "c:\\users\\example\\documents\\tron",
     ],
   });
-  const legacyPath = "c:\\users\\david\\documents" + "\t" + "ron";
+  const legacyPath = "c:\\users\\example\\documents" + "\t" + "ron";
   const legacyId = makeProjectId(legacyPath);
 
-  assert.equal(project.path, "c:\\users\\david\\documents\\tron");
+  assert.equal(project.path, "c:\\users\\example\\documents\\tron");
   assert.equal(findProjectById([project], legacyId), project);
 });

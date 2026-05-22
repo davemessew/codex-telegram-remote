@@ -9,6 +9,7 @@ import {
 } from "./lib/config.mjs";
 import { createBotController } from "./lib/bot-controller.mjs";
 import { startCompletionMonitor } from "./lib/completion-monitor.mjs";
+import { AppServerJobRunner } from "./lib/app-server-runner.mjs";
 import { CodexJobRunner } from "./lib/codex-runner.mjs";
 import { createFileStateStore } from "./lib/state-store.mjs";
 import {
@@ -34,11 +35,7 @@ async function main() {
     });
     const state = createFileStateStore(config.statePath);
     const telegram = new TelegramClient({ botToken: config.botToken });
-    const codex = new CodexJobRunner({
-      codexBin: config.codexBin,
-      state,
-      maxConcurrentJobs: config.maxConcurrentJobs,
-    });
+    const codex = createJobRunner({ config, state });
     const controller = createBotController({
       config,
       projects,
@@ -64,6 +61,17 @@ async function main() {
     stopCompletionMonitor?.();
     lock.release?.();
   }
+}
+
+export function createJobRunner({ config, state }) {
+  const Runner = config.executionBackend === "cli"
+    ? CodexJobRunner
+    : AppServerJobRunner;
+  return new Runner({
+    codexBin: config.codexBin,
+    state,
+    maxConcurrentJobs: config.maxConcurrentJobs,
+  });
 }
 
 export function acquireRunnerLock(

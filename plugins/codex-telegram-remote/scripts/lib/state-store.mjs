@@ -85,6 +85,21 @@ class StateStore {
     this.changed();
   }
 
+  getSelectedThread(chatId, projectId) {
+    this.refresh();
+    return this.state.selectedThreads[threadSelectionKey(chatId, projectId)] ?? null;
+  }
+
+  setSelectedThread(chatId, projectId, threadId) {
+    this.state.selectedThreads[threadSelectionKey(chatId, projectId)] = String(threadId);
+    this.changed();
+  }
+
+  clearSelectedThread(chatId, projectId) {
+    delete this.state.selectedThreads[threadSelectionKey(chatId, projectId)];
+    this.changed();
+  }
+
   getWaitingJob(chatId) {
     this.refresh();
     return this.state.waitingJobs[String(chatId)] ?? null;
@@ -195,6 +210,7 @@ function normalizeStateSnapshot(initialState = {}) {
     lastUpdateId: null,
     selectedProjects: {},
     selectedJobs: {},
+    selectedThreads: {},
     waitingJobs: {},
     jobs: {},
     botMessages: {},
@@ -206,6 +222,7 @@ function normalizeStateSnapshot(initialState = {}) {
     ...source,
     selectedProjects: source.selectedProjects ?? {},
     selectedJobs: source.selectedJobs ?? {},
+    selectedThreads: source.selectedThreads ?? {},
     waitingJobs: source.waitingJobs ?? {},
     jobs: source.jobs ?? {},
     botMessages: source.botMessages ?? {},
@@ -215,6 +232,10 @@ function normalizeStateSnapshot(initialState = {}) {
 
 function botMessageKey(chatId, messageId) {
   return `${String(chatId)}:${String(messageId)}`;
+}
+
+function threadSelectionKey(chatId, projectId) {
+  return `${String(chatId)}:${String(projectId)}`;
 }
 
 function readStateFile(statePath) {
@@ -237,8 +258,9 @@ function mergeStateSnapshots(latestState = {}, currentState = {}) {
     lastUpdateId: maxLastUpdateId(latest.lastUpdateId, current.lastUpdateId),
     selectedProjects: current.selectedProjects,
     selectedJobs: current.selectedJobs,
+    selectedThreads: current.selectedThreads,
     waitingJobs: current.waitingJobs,
-    jobs: { ...latest.jobs, ...current.jobs },
+    jobs: mergeJobSnapshots(latest.jobs, current.jobs),
     botMessages: { ...latest.botMessages, ...current.botMessages },
     completionMonitor: mergeCompletionMonitorSnapshots(latest.completionMonitor, current.completionMonitor),
   };
@@ -272,4 +294,31 @@ function mergeCompletionMonitorSnapshots(latestMonitor = {}, currentMonitor = {}
     fileOffsets: { ...latest.fileOffsets, ...current.fileOffsets },
     notified: { ...latest.notified, ...current.notified },
   };
+}
+
+function mergeJobSnapshots(latestJobs = {}, currentJobs = {}) {
+  const merged = { ...latestJobs };
+  for (const [jobId, currentJob] of Object.entries(currentJobs)) {
+    const latestJob = merged[jobId];
+    merged[jobId] = isNewerJob(latestJob, currentJob) ? currentJob : latestJob;
+  }
+  return merged;
+}
+
+function isNewerJob(existingJob, candidateJob) {
+  if (!existingJob) {
+    return true;
+  }
+  const existingUpdatedAt = Date.parse(existingJob.updatedAt ?? "");
+  const candidateUpdatedAt = Date.parse(candidateJob.updatedAt ?? "");
+  if (Number.isFinite(existingUpdatedAt) && Number.isFinite(candidateUpdatedAt)) {
+    return candidateUpdatedAt >= existingUpdatedAt;
+  }
+  if (Number.isFinite(candidateUpdatedAt)) {
+    return true;
+  }
+  if (Number.isFinite(existingUpdatedAt)) {
+    return false;
+  }
+  return true;
 }

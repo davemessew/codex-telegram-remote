@@ -53,10 +53,12 @@ payload = {
     "defaultProject": default_project,
     "projectAliases": aliases,
     "codexBin": codex_bin,
+    "executionBackend": "appServer",
     "maxConcurrentJobs": 1,
     "sendFullFinalAnswer": True,
     "telegramChunkSize": 3900,
     "projectPageSize": 8,
+    "threadPageSize": 8,
 }
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(payload, handle, indent=2)

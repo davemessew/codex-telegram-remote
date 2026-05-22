@@ -13,6 +13,7 @@ import {
 
 const UNAUTHORIZED_TEXT = "This Telegram chat is not authorized for Codex Telegram Remote.";
 const JOB_CALLBACK_PREFIX = "job:";
+const THREAD_CALLBACK_PREFIX = "thread:";
 
 export function createBotController({
   config,
@@ -48,6 +49,12 @@ export function createBotController({
   }
 
   async function handleCallback(message) {
+    const threadId = parseThreadCallback(message.data);
+    if (threadId) {
+      await handleThreadCallback(message, threadId);
+      return;
+    }
+
     const jobId = parseJobCallback(message.data);
     if (jobId) {
       await handleJobCallback(message, jobId);
@@ -109,6 +116,26 @@ export function createBotController({
     await telegram.editMessageText(message.chatId, message.messageId, formatSelectedJob(job));
   }
 
+  async function handleThreadCallback(message, threadId) {
+    const project = findProjectById(projects, state.getSelectedProject(message.chatId));
+    if (!project) {
+      await telegram.answerCallbackQuery(message.id, "Select a project first.");
+      return;
+    }
+
+    const threads = await listProjectThreads(project);
+    const thread = threads.find((candidate) => candidate.threadId === threadId);
+    if (!thread) {
+      await telegram.answerCallbackQuery(message.id, "Thread not found.");
+      return;
+    }
+
+    state.setSelectedThread?.(message.chatId, project.id, thread.threadId);
+    state.clearSelectedJob?.(message.chatId);
+    await telegram.answerCallbackQuery(message.id, `Selected ${thread.name || thread.threadId}`);
+    await telegram.editMessageText(message.chatId, message.messageId, `Selected thread: ${thread.name || thread.threadId}`);
+  }
+
   async function handleCommand(message) {
     const [command, ...rest] = message.text.trim().split(/\s+/);
     const commandName = command.split("@")[0].toLowerCase();
@@ -117,6 +144,9 @@ export function createBotController({
     switch (commandName) {
       case "/select":
         await sendProjectPicker(message.chatId, args);
+        return;
+      case "/thread":
+        await sendThreadPicker(message.chatId);
         return;
       case "/current":
         await sendCurrentProject(message.chatId);
@@ -149,7 +179,7 @@ export function createBotController({
     if (waitingJobId) {
       try {
         if (typeof codex.resumeJobDetached === "function") {
-          const job = codex.resumeJobDetached({
+          const job = await codex.resumeJobDetached({
             jobId: waitingJobId,
             prompt: message.text,
             onComplete: (completedJob) => sendDetachedJobResult(message.chatId, completedJob),
@@ -185,10 +215,11 @@ export function createBotController({
 
     try {
       if (typeof codex.startJobDetached === "function") {
-        const job = codex.startJobDetached({
+        const job = await codex.startJobDetached({
           chatId: message.chatId,
           project,
           prompt: message.text,
+          threadId: state.getSelectedThread?.(message.chatId, project.id),
           onComplete: (completedJob) => sendDetachedJobResult(message.chatId, completedJob),
           onError: (error) => sendDetachedJobError(message.chatId, "start", error),
         });
@@ -200,6 +231,7 @@ export function createBotController({
         chatId: message.chatId,
         project,
         prompt: message.text,
+        threadId: state.getSelectedThread?.(message.chatId, project.id),
       });
       await sendJobResult(message.chatId, job);
     } catch (error) {
@@ -231,7 +263,50 @@ export function createBotController({
 
   async function sendCurrentProject(chatId) {
     const project = findProjectById(projects, state.getSelectedProject(chatId));
-    await telegram.sendMessage(chatId, project ? `Current project: ${project.name}\n${project.path}` : "No project selected. Use /select.");
+    if (!project) {
+      await telegram.sendMessage(chatId, "No project selected. Use /select.");
+      return;
+    }
+
+    const selectedThreadId = state.getSelectedThread?.(chatId, project.id);
+    await telegram.sendMessage(
+      chatId,
+      [
+        `Current project: ${project.name}`,
+        project.path,
+        selectedThreadId ? `Thread: ${selectedThreadId}` : "",
+      ].filter(Boolean).join("\n"),
+    );
+  }
+
+  async function sendThreadPicker(chatId) {
+    const project = findProjectById(projects, state.getSelectedProject(chatId));
+    if (!project) {
+      await telegram.sendMessage(chatId, "No project selected. Use /select.");
+      return;
+    }
+
+    const threads = await listProjectThreads(project);
+    if (threads.length === 0) {
+      await telegram.sendMessage(chatId, `No GUI threads found for ${project.name}.`);
+      return;
+    }
+
+    const selectedThreadId = state.getSelectedThread?.(chatId, project.id);
+    await telegram.sendMessage(
+      chatId,
+      [
+        `Select a thread for ${project.name}.`,
+        "",
+        ...threads.map((thread) => formatThreadListLine(thread, selectedThreadId)),
+      ].join("\n"),
+      {
+        reply_markup: buildThreadKeyboard({
+          threads,
+          selectedThreadId,
+        }),
+      },
+    );
   }
 
   async function sendJobs(chatId) {
@@ -303,13 +378,14 @@ export function createBotController({
         "Codex Telegram Remote",
         "",
         "/select - choose a project",
+        "/thread - choose the active GUI thread",
         "/current - show the active project",
         "/jobs - list and select recent jobs",
         "/status [jobId] - show selected job or current project status",
         "/cancel <jobId> - cancel a job",
         "/tail [jobId] - show selected job or current project output",
         "",
-        "After selecting a project, send a normal message to run Codex in that project.",
+        "After selecting a project, send a normal message to run Codex in the latest GUI thread for that project.",
       ].join("\n"),
     );
   }
@@ -343,6 +419,7 @@ export function createBotController({
         title,
         `Job: ${job.jobId}`,
         job.projectName ? `Project: ${job.projectName}` : "",
+        job.threadName ? `Thread: ${job.threadName}` : job.threadId ? `Thread: ${job.threadId}` : "",
         "",
         "Use /status or /tail while it runs.",
       ].filter(Boolean).join("\n"),
@@ -392,6 +469,15 @@ export function createBotController({
 
     const job = jobs.find((candidate) => jobMatchesProject(candidate, project));
     return job ? { job } : { error: `No jobs found for current project: ${project.name}.` };
+  }
+
+  async function listProjectThreads(project) {
+    if (typeof codex.listProjectThreads !== "function") {
+      return [];
+    }
+    return codex.listProjectThreads(project, {
+      limit: config.threadPageSize ?? 8,
+    });
   }
 }
 
@@ -464,11 +550,35 @@ function buildJobKeyboard({ jobs, selectedJobId }) {
   };
 }
 
+function buildThreadKeyboard({ threads, selectedThreadId }) {
+  return {
+    inline_keyboard: threads.map((thread) => [
+      {
+        text: truncateButtonText(`${thread.threadId === selectedThreadId ? "Current: " : ""}${thread.name || thread.threadId}`),
+        callback_data: `${THREAD_CALLBACK_PREFIX}${thread.threadId}`,
+      },
+    ]),
+  };
+}
+
 function parseJobCallback(data) {
   if (!String(data ?? "").startsWith(JOB_CALLBACK_PREFIX)) {
     return null;
   }
   return String(data).slice(JOB_CALLBACK_PREFIX.length);
+}
+
+function parseThreadCallback(data) {
+  if (!String(data ?? "").startsWith(THREAD_CALLBACK_PREFIX)) {
+    return null;
+  }
+  return String(data).slice(THREAD_CALLBACK_PREFIX.length);
+}
+
+function formatThreadListLine(thread, selectedThreadId) {
+  const marker = thread.threadId === selectedThreadId ? "*" : "-";
+  const timestamp = thread.updatedAt ? ` (${thread.updatedAt})` : "";
+  return `${marker} ${thread.name || thread.threadId}${timestamp}`;
 }
 
 function jobMatchesProject(job, project) {

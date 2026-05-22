@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9
+
+- Routed Telegram prompts through existing Codex GUI threads by default using the local app-server protocol.
+- Added `/thread` with tappable GUI thread selection per Telegram chat and project.
+- Defaulted unpinned prompts to the selected project's most recently updated GUI thread.
+- Added `executionBackend` so users can opt back into the previous CLI execution path.
+
 ## 0.1.8
 
 - Kept Telegram polling responsive while Codex jobs run by launching prompt and resume work in the background.

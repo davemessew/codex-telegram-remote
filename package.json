@@ -1,6 +1,6 @@
 {
   "name": "codex-telegram-remote",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Codex plugin and Telegram runner for remote Codex jobs and completion notifications.",
   "type": "module",
   "private": false,

@@ -86,6 +86,7 @@ function createHarness() {
       calls.push({ method: "cancelJob", jobId });
       return jobs.delete(jobId);
     },
+    listProjectThreads: async () => [],
   };
 
   return {
@@ -270,6 +271,142 @@ test("detached prompt handling keeps commands responsive while a job runs", asyn
   assert.match(calls.at(-1).text, /Details:\ndone/);
 });
 
+test("/thread shows tappable GUI threads for the current project", async () => {
+  const { calls, controller } = createHarness();
+
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-1",
+      data: "select:telegram",
+      message: { message_id: 10, chat: { id: 123 } },
+    },
+  });
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/thread",
+    },
+  });
+
+  assert.equal(calls.at(-1).text, "No GUI threads found for telegram.");
+});
+
+test("/thread callback stores the selected GUI thread", async () => {
+  const calls = [];
+  const state = createMemoryStateStore();
+  const telegram = {
+    sendMessage: async (chatId, text, options) => {
+      calls.push({ method: "sendMessage", chatId, text, options });
+      return { message_id: calls.length };
+    },
+    editMessageText: async (chatId, messageId, text, options) => {
+      calls.push({ method: "editMessageText", chatId, messageId, text, options });
+    },
+    answerCallbackQuery: async (callbackQueryId, text) => {
+      calls.push({ method: "answerCallbackQuery", callbackQueryId, text });
+    },
+  };
+  const codex = {
+    listProjectThreads: async () => [
+      {
+        threadId: "019e4c11-a994-7f10-ba2d-9a575f2c1384",
+        name: "Build Telegram plugin",
+        updatedAt: "2026-05-22T15:52:00.000Z",
+      },
+    ],
+    listJobs: () => [],
+  };
+  const controller = createBotController({
+    config: {
+      allowedChatIds: ["123"],
+      telegramChunkSize: 3900,
+      sendFullFinalAnswer: true,
+    },
+    projects,
+    state,
+    telegram,
+    codex,
+  });
+  state.setSelectedProject("123", "telegram");
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "/thread",
+    },
+  });
+  await controller.handleUpdate({
+    callback_query: {
+      id: "cb-thread",
+      data: "thread:019e4c11-a994-7f10-ba2d-9a575f2c1384",
+      message: { message_id: 11, chat: { id: 123 } },
+    },
+  });
+
+  assert.equal(calls[0].options.reply_markup.inline_keyboard[0][0].callback_data, "thread:019e4c11-a994-7f10-ba2d-9a575f2c1384");
+  assert.equal(state.getSelectedThread("123", "telegram"), "019e4c11-a994-7f10-ba2d-9a575f2c1384");
+  assert.equal(calls.at(-1).text, "Selected thread: Build Telegram plugin");
+});
+
+test("normal message passes the selected GUI thread to the detached backend", async () => {
+  const calls = [];
+  const jobs = new Map();
+  const state = createMemoryStateStore();
+  state.setSelectedProject("123", "telegram");
+  state.setSelectedThread("123", "telegram", "thread-selected");
+  const telegram = {
+    sendMessage: async (chatId, text, options) => {
+      calls.push({ method: "sendMessage", chatId, text, options });
+      return { message_id: calls.length };
+    },
+    editMessageText: async () => {},
+    answerCallbackQuery: async () => {},
+  };
+  const codex = {
+    startJobDetached: ({ chatId, project, prompt, threadId }) => {
+      calls.push({ method: "startJobDetached", chatId, project, prompt, threadId });
+      const job = {
+        jobId: "job-gui",
+        chatId: String(chatId),
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
+        threadId,
+        status: "running",
+        updatedAt: "2026-05-22T00:00:00.000Z",
+      };
+      jobs.set(job.jobId, job);
+      return job;
+    },
+    listJobs: (chatId) => [...jobs.values()].filter((job) => !chatId || job.chatId === String(chatId)),
+  };
+  const controller = createBotController({
+    config: {
+      allowedChatIds: ["123"],
+      telegramChunkSize: 3900,
+      sendFullFinalAnswer: true,
+    },
+    projects,
+    state,
+    telegram,
+    codex,
+  });
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "run in gui",
+    },
+  });
+
+  assert.equal(calls[0].method, "startJobDetached");
+  assert.equal(calls[0].threadId, "thread-selected");
+  assert.match(calls[1].text, /Thread: thread-selected/);
+});
+
 test("normal message with a legacy selected project id starts the corrected project", async () => {
   const calls = [];
   const state = createMemoryStateStore();
@@ -311,7 +448,7 @@ test("normal message with a legacy selected project id starts the corrected proj
         id: "project-fixed",
         legacyIds: [legacyProjectId],
         name: "tron",
-        path: "c:\\users\\david\\documents\\tron",
+        path: "c:\\users\\example\\documents\\tron",
       },
     ],
     state,
@@ -329,7 +466,7 @@ test("normal message with a legacy selected project id starts the corrected proj
 
   assert.equal(calls[0].method, "startJob");
   assert.equal(calls[0].project.id, "project-fixed");
-  assert.equal(calls[0].project.path, "c:\\users\\david\\documents\\tron");
+  assert.equal(calls[0].project.path, "c:\\users\\example\\documents\\tron");
   assert.equal(state.getSelectedProject("123"), "project-fixed");
 });
 
