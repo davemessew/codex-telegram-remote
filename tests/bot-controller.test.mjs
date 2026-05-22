@@ -178,6 +178,69 @@ test("normal message with a selected project starts a Codex job", async () => {
   assert.match(calls.at(-1).text, /Details:\nfinished/);
 });
 
+test("normal message with a legacy selected project id starts the corrected project", async () => {
+  const calls = [];
+  const state = createMemoryStateStore();
+  const legacyProjectId = "project-legacy";
+  state.setSelectedProject("123", legacyProjectId);
+  const telegram = {
+    sendMessage: async (chatId, text, options) => {
+      calls.push({ method: "sendMessage", chatId, text, options });
+      return { message_id: calls.length };
+    },
+    editMessageText: async () => {},
+    answerCallbackQuery: async () => {},
+  };
+  const codex = {
+    startJob: async ({ chatId, project, prompt }) => {
+      calls.push({ method: "startJob", chatId, project, prompt });
+      return {
+        jobId: "job-legacy",
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
+        finalMessage: "finished",
+        status: "completed",
+      };
+    },
+    resumeJob: async () => {
+      throw new Error("unexpected resume");
+    },
+    listJobs: () => [],
+  };
+  const controller = createBotController({
+    config: {
+      allowedChatIds: ["123"],
+      telegramChunkSize: 3900,
+      sendFullFinalAnswer: true,
+    },
+    projects: [
+      {
+        id: "project-fixed",
+        legacyIds: [legacyProjectId],
+        name: "tron",
+        path: "c:\\users\\david\\documents\\tron",
+      },
+    ],
+    state,
+    telegram,
+    codex,
+  });
+
+  await controller.handleUpdate({
+    message: {
+      message_id: 2,
+      chat: { id: 123 },
+      text: "run",
+    },
+  });
+
+  assert.equal(calls[0].method, "startJob");
+  assert.equal(calls[0].project.id, "project-fixed");
+  assert.equal(calls[0].project.path, "c:\\users\\david\\documents\\tron");
+  assert.equal(state.getSelectedProject("123"), "project-fixed");
+});
+
 test("unauthorized chats are rejected before any Codex work starts", async () => {
   const { calls, controller } = createHarness();
 

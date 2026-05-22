@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Fixed Codex project discovery for double-quoted Windows paths whose folder names start with `t` or `n`.
+- Added compatibility for Telegram chats that had already selected projects using IDs generated from the old malformed paths.
+
 ## 0.1.5
 
 - Added a runner-side transcript monitor that sends Telegram completion notifications from desktop `task_complete` events when the Stop hook path misses them.

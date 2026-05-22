@@ -168,6 +168,9 @@ export function createBotController({
       await sendProjectPicker(message.chatId);
       return;
     }
+    if (project.id !== selectedProjectId) {
+      state.setSelectedProject(message.chatId, project.id);
+    }
 
     try {
       const job = await codex.startJob({

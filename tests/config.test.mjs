@@ -5,7 +5,9 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+  findProjectById,
   loadConfig,
+  makeProjectId,
   resolveConfigPath,
   normalizeConfig,
   parseCodexProjects,
@@ -86,14 +88,19 @@ test("parseCodexProjects reads quoted Windows project paths from Codex TOML", ()
 [projects."C:\\\\work\\\\SampleApp"]
 trust_level = "trusted"
 
+[projects."c:\\\\users\\\\david\\\\documents\\\\tron"]
+trust_level = "trusted"
+
 [projects.'c:\\work\\telegram']
 trust_level = "trusted"
 `);
 
   assert.deepEqual(projects, [
     "C:\\work\\SampleApp",
+    "c:\\users\\david\\documents\\tron",
     "c:\\work\\telegram",
   ]);
+  assert.equal(projects[1].includes("\t"), false);
 });
 
 test("resolveConfiguredProjects merges aliases with Codex projects and marks the default", () => {
@@ -138,4 +145,21 @@ test("resolveConfiguredProjects keeps Telegram callback ids short for long alias
   });
 
   assert.ok(`select:${project.id}`.length <= 64);
+});
+
+test("findProjectById accepts legacy ids from the old Windows TOML decoder", () => {
+  const [project] = resolveConfiguredProjects({
+    config: normalizeConfig({
+      botToken: "token",
+      allowedChatIds: ["1"],
+    }),
+    codexProjectPaths: [
+      "c:\\users\\david\\documents\\tron",
+    ],
+  });
+  const legacyPath = "c:\\users\\david\\documents" + "\t" + "ron";
+  const legacyId = makeProjectId(legacyPath);
+
+  assert.equal(project.path, "c:\\users\\david\\documents\\tron");
+  assert.equal(findProjectById([project], legacyId), project);
 });

@@ -107,6 +107,7 @@ export function resolveConfiguredProjects({ config, codexProjectPaths = [] }) {
     seen.add(normalizedPath);
     projects.push({
       id: makeProjectId(projectPath),
+      legacyIds: legacyProjectIdsForPath(projectPath),
       name: path.basename(projectPath.replace(/[\\/]$/, "")) || projectPath,
       path: projectPath,
       source: "codex",
@@ -123,7 +124,9 @@ export function resolveConfiguredProjects({ config, codexProjectPaths = [] }) {
 }
 
 export function findProjectById(projects, projectId) {
-  return projects.find((project) => project.id === projectId) ?? null;
+  return projects.find((project) => (
+    project.id === projectId || project.legacyIds?.includes(projectId)
+  )) ?? null;
 }
 
 export function makeProjectId(projectPath) {
@@ -167,11 +170,31 @@ function stripUtf8Bom(value) {
 }
 
 function decodeTomlBasicString(value) {
-  return value
-    .replace(/\\\\/g, "\\")
-    .replace(/\\"/g, "\"")
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, "\t");
+  let decoded = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char !== "\\") {
+      decoded += char;
+      continue;
+    }
+
+    const next = value[index + 1];
+    index += 1;
+    if (next === "\\") {
+      decoded += "\\";
+    } else if (next === "\"") {
+      decoded += "\"";
+    } else if (next === "n") {
+      decoded += "\n";
+    } else if (next === "t") {
+      decoded += "\t";
+    } else if (next === undefined) {
+      decoded += "\\";
+    } else {
+      decoded += next;
+    }
+  }
+  return decoded;
 }
 
 function normalizePathForCompare(value) {
@@ -188,4 +211,11 @@ function sanitizeProjectId(value) {
   }
   const digest = crypto.createHash("sha256").update(sanitized).digest("base64url").slice(0, 8).toLowerCase();
   return `${sanitized.slice(0, 39).replace(/-+$/g, "")}-${digest}`;
+}
+
+function legacyProjectIdsForPath(projectPath) {
+  const legacyPath = String(projectPath ?? "")
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t");
+  return legacyPath && legacyPath !== projectPath ? [makeProjectId(legacyPath)] : [];
 }
