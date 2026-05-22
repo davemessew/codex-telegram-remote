@@ -60,6 +60,24 @@ test("extractDetailsText leaves answers without summary unchanged", () => {
   );
 });
 
+test("extractDetailsText removes fallback summary prefix from details", () => {
+  assert.equal(
+    extractDetailsText("Implemented the change.\n\nTests pass.", {
+      summary: "Implemented the change.",
+    }),
+    "Tests pass.",
+  );
+});
+
+test("extractDetailsText returns empty details when only fallback summary remains", () => {
+  assert.equal(
+    extractDetailsText("Implemented the change.", {
+      summary: "Implemented the change.",
+    }),
+    "",
+  );
+});
+
 test("summarizeJobResult truncates long summaries", () => {
   const summary = summarizeJobResult({
     explicitSummary: "x ".repeat(100),

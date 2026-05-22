@@ -28,7 +28,7 @@ export function buildStopNotification({
     explicitSummary: readPayloadSummary(payload),
     finalMessage,
   });
-  const details = extractDetailsText(message);
+  const details = extractDetailsText(message, { summary });
   if (summary) {
     lines.push("", "Summary:", summary);
   }

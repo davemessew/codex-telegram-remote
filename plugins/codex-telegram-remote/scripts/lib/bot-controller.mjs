@@ -356,7 +356,7 @@ function formatJobCompletion(job) {
 
   const finalMessage = String(job.finalMessage ?? "").trim();
   const summary = readJobSummary(job);
-  const details = extractDetailsText(finalMessage);
+  const details = extractDetailsText(finalMessage, { summary });
   const lines = [
     formatCompletionTitle(job),
     `Job: ${job.jobId}`,

@@ -41,7 +41,7 @@ export function extractSummarySection(text) {
   return "";
 }
 
-export function extractDetailsText(text) {
+export function extractDetailsText(text, { summary = "" } = {}) {
   const normalizedText = String(text ?? "").replace(/\r\n/g, "\n");
   const lines = normalizedText.split("\n");
   const keptLines = [];
@@ -67,7 +67,7 @@ export function extractDetailsText(text) {
   }
 
   const details = normalizeSummary(stripLeadingDetailsHeading(keptLines.join("\n")));
-  return removedSummary ? details : normalizeSummary(normalizedText);
+  return removeSummaryPrefix(removedSummary ? details : normalizeSummary(normalizedText), summary);
 }
 
 function fallbackSummary(text) {
@@ -134,4 +134,24 @@ function stripLeadingDetailsHeading(text) {
 
 function isDetailsHeading(line) {
   return /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:details|final answer)(?:\*\*)?\s*:?\s*$/i.test(String(line ?? ""));
+}
+
+function removeSummaryPrefix(details, summary) {
+  const normalizedDetails = normalizeSummary(details);
+  const normalizedSummary = normalizeSummary(summary);
+  if (!normalizedDetails || !normalizedSummary) {
+    return normalizedDetails;
+  }
+  if (normalizedDetails === normalizedSummary) {
+    return "";
+  }
+
+  for (const separator of ["\n\n", "\n"]) {
+    const prefix = `${normalizedSummary}${separator}`;
+    if (normalizedDetails.startsWith(prefix)) {
+      return normalizeSummary(normalizedDetails.slice(prefix.length));
+    }
+  }
+
+  return normalizedDetails;
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Removed fallback summary text from completion details so one-paragraph summaries are not repeated at the top of the details block.
+
 ## 0.1.3
 
 - Stripped embedded `Summary` sections out of completion details so Telegram messages do not repeat the same content under multiple headings.
