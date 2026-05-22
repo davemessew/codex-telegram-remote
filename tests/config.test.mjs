@@ -36,6 +36,7 @@ test("normalizeConfig keeps chat allowlist strict and resolves defaults", () => 
   assert.equal(config.projectAliases.site, "C:/work/site");
   assert.equal(config.maxConcurrentJobs, 1);
   assert.equal(config.telegramChunkSize, 3900);
+  assert.equal(config.sendFullFinalAnswer, true);
   assert.equal(config.replyToUnauthorized, false);
 });
 

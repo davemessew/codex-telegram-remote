@@ -120,6 +120,21 @@ Check:
 - The hook can write to the configured `statePath`.
 - The task was not launched from Telegram; Telegram-launched jobs are tracked directly by the runner.
 
+## Completion Summary Missing After Updating
+
+Codex runs plugin hooks from its installed plugin cache. If you update a local checkout but do not reinstall the plugin, the scheduled runner can use new files while the `Stop` hook still uses old cached files.
+
+Fix:
+
+```powershell
+codex plugin marketplace add https://github.com/davemessew/codex-telegram-remote
+codex plugin add codex-telegram-remote@codex-telegram-remote
+Stop-ScheduledTask -TaskName CodexTelegramRemote
+Start-ScheduledTask -TaskName CodexTelegramRemote
+```
+
+`sendFullFinalAnswer` defaults to `true`. Leave it unset or set it to `true` to include the full final answer after the summary.
+
 ## Codex Asks for Approval While Remote
 
 The runner inherits the user's Codex config. If Codex asks for interactive approval, the remote job can stall or fail depending on Codex mode. Use a Codex configuration that matches your risk tolerance for unattended use.

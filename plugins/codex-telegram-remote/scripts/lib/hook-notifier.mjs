@@ -8,7 +8,12 @@ export function shouldSuppressHookNotification({ env = process.env } = {}) {
   return Boolean(env.CODEX_TELEGRAM_REMOTE_JOB_ID);
 }
 
-export function buildStopNotification({ payload = {}, finalMessage = "", job = null }) {
+export function buildStopNotification({
+  payload = {},
+  finalMessage = "",
+  job = null,
+  sendFullFinalAnswer = true,
+} = {}) {
   const lines = ["Codex task completed"];
   if (job?.jobId) {
     lines.push(`Job: ${job.jobId}`);
@@ -26,7 +31,7 @@ export function buildStopNotification({ payload = {}, finalMessage = "", job = n
   if (summary) {
     lines.push("", "Summary:", summary);
   }
-  if (message && message !== summary) {
+  if (sendFullFinalAnswer !== false && message && message !== summary) {
     lines.push("", "Final answer:", message);
   }
   return lines.join("\n");

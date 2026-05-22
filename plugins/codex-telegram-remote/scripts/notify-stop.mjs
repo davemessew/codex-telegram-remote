@@ -44,7 +44,12 @@ async function main() {
       projects,
     });
     state?.addJob(job);
-    const notification = buildStopNotification({ payload, finalMessage, job });
+    const notification = buildStopNotification({
+      payload,
+      finalMessage,
+      job,
+      sendFullFinalAnswer: config.sendFullFinalAnswer,
+    });
     const chunks = chunkTelegramText(notification, config.telegramChunkSize);
     for (const [index, chunk] of chunks.entries()) {
       await telegram.sendMessage(chatId, chunk, index === 0 ? {

@@ -40,6 +40,16 @@ test("buildStopNotification summarizes regular Codex task completion", () => {
   );
 });
 
+test("buildStopNotification omits final answer when sendFullFinalAnswer is false", () => {
+  assert.equal(
+    buildStopNotification({
+      finalMessage: "Summary:\nShort version.\n\nDetails:\nFull final answer.",
+      sendFullFinalAnswer: false,
+    }),
+    "Codex task completed\n\nSummary:\nShort version.",
+  );
+});
+
 test("buildExternalJob records regular Codex completions for a Telegram chat", () => {
   const job = buildExternalJob({
     payload: {

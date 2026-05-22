@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - Added tappable `/jobs` selection for recent jobs.
 - Made `/status` and `/tail` use the selected job before falling back to the current project.
 - Recorded regular app/CLI completion hook notifications as selectable jobs.
 - Reloaded file-backed state before reads so a running Telegram runner can see jobs written by hook processes.
 - Included task summaries in Telegram completion messages and completed-job status output.
+- Honored `sendFullFinalAnswer` for Stop-hook notifications while keeping its default as `true`.
+- Bumped the plugin version so local plugin installs refresh the Stop hook cache instead of reusing stale code.
 
 ## 0.1.0
 
